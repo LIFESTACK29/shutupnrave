@@ -113,9 +113,9 @@
 
 @layer base {
   * {
-    @apply font-bricolage_grotesque border-border outline-ring/50;
+    @apply scroll-smooth font-bricolage_grotesque border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-black text-foreground;
   }
 }

@@ -39,7 +39,7 @@ export const metadata: Metadata = {
       "shutupnrave is a seamless ticketing platform for tech raves. Secure your spot, manage your tickets, and experience the future of event access at shutupnrave.com.ng.",
     images: [
       {
-        url: "/public/shutupnrave-logo.jpg", // Replace with your actual logo or event image
+        url: "https://res.cloudinary.com/dpesanzkk/image/upload/v1751714360/shutupnrave.purple_wo1mkz.jpg",
         width: 1200,
         height: 630,
         alt: "shutupnrave - Tech Rave",
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     title: "shutupnrave | Tech Rave",
     description: "shutupnrave is a seamless ticketing platform for tech raves. Secure your spot, manage your tickets, and experience the future of event access at shutupnrave.com.ng.",
     images: [
-      "/public/shutupnrave-logo.jpg", // Replace with your actual logo or event image
+      "https://res.cloudinary.com/dpesanzkk/image/upload/v1751714360/shutupnrave.purple_wo1mkz.jpg", 
     ],
     creator: "@shutupnrave", // Replace with actual Twitter handle if available
   },
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#02202B",
+  themeColor: "#FDC700",
   initialScale: 1,
   width: "device-width",
   maximumScale: 1,
