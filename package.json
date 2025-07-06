@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "prismaDev": "dotenv -e .env.local prisma db push",
-    "prismaGenerate": "dotenv -e .env.local prisma generate"
+    "prismaGenerate": "dotenv -e .env.local prisma generate",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
