@@ -14,24 +14,7 @@ import {
   Hr,
 } from "@react-email/components";
 import * as React from "react";
-
-interface OrderConfirmationEmailProps {
-  customerName: string;
-  orderId: string;
-  ticketDetails: Array<{
-    type: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-  }>;
-  subtotal: number;
-  processingFee: number;
-  total: number;
-  eventDate: string;
-  eventTime: string;
-  eventLocation: string;
-  qrCodeDataUrl: string;
-}
+import { OrderConfirmationEmailProps } from "@/types";
 
 export const OrderConfirmationEmail = ({
   customerName,

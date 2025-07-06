@@ -45,41 +45,41 @@ export function SuccessModal({
 }
 
 // Legacy component for backward compatibility (if needed elsewhere)
-function CheckoutDialog({
-    isOpen,
-    onOpenChange,
-    disabled
-}: {
-    isOpen: boolean;
-    onOpenChange: (open: boolean) => void;
-    disabled: boolean;
-}) {
-    return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-black border-white/20 text-white max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="text-yellow-400">Complete Your Purchase</DialogTitle>
+// function CheckoutDialog({
+//     isOpen,
+//     onOpenChange,
+//     disabled
+// }: {
+//     isOpen: boolean;
+//     onOpenChange: (open: boolean) => void;
+//     disabled: boolean;
+// }) {
+//     return (
+//         <Dialog open={isOpen} onOpenChange={onOpenChange}>
+//             <DialogContent className="bg-black border-white/20 text-white max-w-md">
+//                 <DialogHeader>
+//                     <DialogTitle className="text-yellow-400">Complete Your Purchase</DialogTitle>
 
-                </DialogHeader>
+//                 </DialogHeader>
 
-                <div className="text-center py-8">
-                    <div className="text-6xl mb-4">✅</div>
-                    <p className="text-white/80 mb-4">Payment integration coming soon!</p>
-                    <p className="text-sm text-white/60">
-                        We're working on integrating secure payment options.
-                        Follow us on social media for updates on ticket sales.
-                    </p>
-                </div>
+//                 <div className="text-center py-8">
+//                     <div className="text-6xl mb-4">✅</div>
+//                     <p className="text-white/80 mb-4">Payment integration coming soon!</p>
+//                     <p className="text-sm text-white/60">
+//                         We're working on integrating secure payment options.
+//                         Follow us on social media for updates on ticket sales.
+//                     </p>
+//                 </div>
 
-                <DialogFooter>
-                    <Button
-                        onClick={() => onOpenChange(false)}
-                        className="bg-yellow-400 text-black hover:bg-yellow-300 cursor-pointer hover:cursor-pointer active:scale-95 transition-transform duration-200"
-                    >
-                        Got it!
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
+//                 <DialogFooter>
+//                     <Button
+//                         onClick={() => onOpenChange(false)}
+//                         className="bg-yellow-400 text-black hover:bg-yellow-300 cursor-pointer hover:cursor-pointer active:scale-95 transition-transform duration-200"
+//                     >
+//                         Got it!
+//                     </Button>
+//                 </DialogFooter>
+//             </DialogContent>
+//         </Dialog>
+//     );
+// }

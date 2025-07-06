@@ -6,12 +6,13 @@ import { verifyPayment } from "@/app/server/checkout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Navbar from "@/app/components/Navbar";
+import { Order, OrderItem } from "@/types";
 
 export default function PaymentSuccessPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading"
   );
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,7 +30,7 @@ export default function PaymentSuccessPage() {
       try {
         const result = await verifyPayment(reference!);
 
-        if (result.success) {
+        if (result.success && result.order) {
           setOrder(result.order);
           setStatus("success");
         } else {
@@ -37,6 +38,7 @@ export default function PaymentSuccessPage() {
           setErrorMessage(result.error || "Payment verification failed");
         }
       } catch (error) {
+        console.log(error);
         setStatus("error");
         setErrorMessage("Something went wrong while verifying your payment");
       }
@@ -108,7 +110,7 @@ export default function PaymentSuccessPage() {
 
   return (
     <>
-    <Navbar />
+      <Navbar />
       <div className="bg-black text-white min-h-screen">
         <div className="flex items-center justify-center py-4 px-4 md:py-8">
           <Card className="bg-white/5 border-green-500/50 max-w-2xl w-full max-h-[85vh] md:max-h-[90vh] overflow-y-auto">
@@ -155,7 +157,7 @@ export default function PaymentSuccessPage() {
                     <h3 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4">
                       Ticket Information
                     </h3>
-                    {order.orderItems.map((item: any, index: number) => (
+                    {order.orderItems.map((item: OrderItem, index: number) => (
                       <div
                         key={index}
                         className="flex justify-between items-start py-3 border-b border-white/10 last:border-b-0"
@@ -201,7 +203,7 @@ export default function PaymentSuccessPage() {
                       📧 Check Your Email
                     </h3>
                     <p className="text-white/70 text-xs md:text-sm">
-                      We've sent a confirmation email to{" "}
+                      We&apos;ve sent a confirmation email to{" "}
                       <span className="text-white font-medium break-all">
                         {order.user.email}
                       </span>{" "}

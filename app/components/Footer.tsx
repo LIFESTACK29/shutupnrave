@@ -32,6 +32,7 @@ export default function Footer() {
                 }, 5000);
             }
         } catch (error) {
+            console.log(error)
             setStatus({
                 type: 'error',
                 message: 'Something went wrong. Please try again later.'

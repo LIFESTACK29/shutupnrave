@@ -7,6 +7,14 @@ import { render } from "@react-email/render";
 import { OrderConfirmationEmail } from "@/emails/order-confirmation";
 import QRCode from "qrcode";
 import { v2 as cloudinary } from "cloudinary";
+import {
+  CheckoutFormData,
+  OrderData,
+  PaymentInitResponse,
+  PaymentVerificationResponse,
+  OrderResponse,
+  Order,
+} from "@/types";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -35,12 +43,11 @@ const OrderDataSchema = z.object({
   total: z.number().min(1),
 });
 
-export type CheckoutFormData = z.infer<typeof CheckoutFormSchema>;
-export type OrderData = z.infer<typeof OrderDataSchema>;
+// Types are now imported from @/types
 
 // Generate custom order ID
 function generateOrderId(): string {
-  const timestamp = Date.now();
+  // const timestamp = Date.now();
   const year = new Date().getFullYear();
   const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `ORD-${year}-${randomSuffix}`;
@@ -62,7 +69,7 @@ function getTicketBasePrice(ticketTypeName: string): number {
 export async function initializePayment(
   userData: CheckoutFormData,
   orderData: OrderData
-) {
+): Promise<PaymentInitResponse> {
   try {
     // Validate input data
     const validatedUser = CheckoutFormSchema.parse(userData);
@@ -186,7 +193,9 @@ export async function initializePayment(
 }
 
 // Verify payment and complete order
-export async function verifyPayment(reference: string) {
+export async function verifyPayment(
+  reference: string
+): Promise<PaymentVerificationResponse> {
   try {
     // Verify payment with Paystack
     const paystackResponse = await fetch(
@@ -256,9 +265,9 @@ export async function verifyPayment(reference: string) {
 }
 
 // Send order confirmation email using React Email template
-async function sendOrderConfirmationEmail(order: any) {
+async function sendOrderConfirmationEmail(order: Order) {
   try {
-    const ticketDetails = order.orderItems.map((item: any) => ({
+    const ticketDetails = order.orderItems.map((item) => ({
       type: item.ticketType.name,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
@@ -343,7 +352,7 @@ async function sendOrderConfirmationEmail(order: any) {
 }
 
 // Get order details
-export async function getOrder(orderId: string) {
+export async function getOrder(orderId: string): Promise<OrderResponse> {
   try {
     const order = await prisma.order.findUnique({
       where: { orderId },
@@ -359,7 +368,7 @@ export async function getOrder(orderId: string) {
 
     return {
       success: true,
-      order,
+      order: order || undefined,
     };
   } catch (error) {
     console.error("Get order error:", error);

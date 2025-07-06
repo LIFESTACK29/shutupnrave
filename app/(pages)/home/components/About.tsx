@@ -24,7 +24,7 @@ export default function About() {
                     {/* Main message */}
                     <div className="space-y-6 text-center">
                         <div className="text-lg md:text-xl font-medium text-white/90 max-w-3xl mx-auto leading-relaxed text-center">
-                            We're not an event company. We're just a bunch of people who got tired of being <span className="text-yellow-400">"too busy"</span> to have fun.
+                            We&apos;re not an event company. We&apos;re just a bunch of people who got tired of being <span className="text-yellow-400">&quot;too busy&quot;</span> to have fun.
                         </div>
 
                         <div className="text-base md:text-lg text-white/80 max-w-3xl mx-auto leading-relaxed text-center">

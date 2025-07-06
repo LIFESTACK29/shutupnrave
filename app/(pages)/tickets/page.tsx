@@ -74,7 +74,7 @@ export default function TicketsPage() {
                         Early Bird <span className="text-yellow-400">Tickets</span>
                     </h1>
                     <p className="text-white/70 text-lg mb-8">
-                        Solo or with your geng? Either way, you're about to lose your mind to the beats.
+                        Solo or with your geng? Either way, you&apos;re about to lose your mind to the beats.
                     </p>
                     <div className="flex-wrap justify-center gap-6 text-white/70 text-sm md:flex hidden">
                         <div className="flex items-center gap-2">
