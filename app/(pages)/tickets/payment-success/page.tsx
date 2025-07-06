@@ -18,7 +18,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { verifyPayment } from "@/app/server/checkout";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,34 @@ import { Card, CardContent } from "@/components/ui/card";
 import Navbar from "@/app/components/Navbar";
 import { Order, OrderItem } from "@/types";
 
-export default function PaymentSuccessPage() {
+/**
+ * Loading component shown while search params are being resolved
+ * This satisfies the Suspense boundary requirement
+ */
+function PaymentLoadingFallback() {
+  return (
+    <div className="bg-black text-white min-h-screen">
+      <Navbar />
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+          <h2 className="text-2xl font-bold text-yellow-400 mb-2">
+            Loading...
+          </h2>
+          <p className="text-white/70">
+            Please wait while we load your payment details
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Main payment success component that uses useSearchParams()
+ * This component is wrapped in Suspense to handle the search params properly
+ */
+function PaymentSuccessContent() {
   // State management for different stages of payment verification
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading"
@@ -34,7 +61,7 @@ export default function PaymentSuccessPage() {
   const [order, setOrder] = useState<Order | null>(null); // Complete order data after verification
   const [errorMessage, setErrorMessage] = useState(""); // Error details for failed payments
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // This hook requires Suspense boundary
 
   // Main effect: Verify payment when component mounts
   useEffect(() => {
@@ -270,5 +297,17 @@ export default function PaymentSuccessPage() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Main export component with Suspense boundary
+ * This wrapper ensures useSearchParams() works properly in Next.js 13+
+ */
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<PaymentLoadingFallback />}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
