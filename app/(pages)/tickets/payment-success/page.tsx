@@ -1,3 +1,21 @@
+/**
+ * Payment Success Page
+ *
+ * This page is displayed after a successful payment via Paystack.
+ *
+ * Features:
+ * 1. Verifies payment status with Paystack when page loads
+ * 2. Displays order details, ticket information, and pricing breakdown
+ * 3. Shows loading state during payment verification
+ * 4. Handles error states for failed payments
+ * 5. Responsive design optimized for mobile and desktop
+ * 6. Formats prices in Nigerian Naira (NGN)
+ * 7. Provides navigation back to tickets or home page
+ *
+ * URL Pattern: /tickets/payment-success?reference=ORD-YYYY-XXXXXX
+ * The reference parameter contains our custom order ID for verification
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,15 +27,19 @@ import Navbar from "@/app/components/Navbar";
 import { Order, OrderItem } from "@/types";
 
 export default function PaymentSuccessPage() {
+  // State management for different stages of payment verification
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading"
   );
-  const [order, setOrder] = useState<Order | null>(null);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [order, setOrder] = useState<Order | null>(null); // Complete order data after verification
+  const [errorMessage, setErrorMessage] = useState(""); // Error details for failed payments
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Main effect: Verify payment when component mounts
   useEffect(() => {
+    // Extract order reference from URL parameters
+    // This is our custom order ID passed back from Paystack
     const reference = searchParams.get("reference");
 
     if (!reference) {
@@ -26,13 +48,21 @@ export default function PaymentSuccessPage() {
       return;
     }
 
+    /**
+     * Handles the payment verification process
+     * 1. Calls verifyPayment server action with reference
+     * 2. Updates order status in database if successful
+     * 3. Sends confirmation email with QR code
+     * 4. Updates component state based on results
+     */
     async function handlePaymentVerification() {
       try {
+        // Call server action to verify payment with Paystack
         const result = await verifyPayment(reference!);
 
         if (result.success && result.order) {
-          setOrder(result.order);
-          setStatus("success");
+          setOrder(result.order); // Store complete order data for display
+          setStatus("success"); // Show success UI
         } else {
           setStatus("error");
           setErrorMessage(result.error || "Payment verification failed");
@@ -45,16 +75,24 @@ export default function PaymentSuccessPage() {
     }
 
     handlePaymentVerification();
-  }, [searchParams]);
+  }, [searchParams]); // Re-run if URL parameters change
 
+  /**
+   * Formats price values to Nigerian Naira currency
+   * Uses Intl.NumberFormat for proper currency formatting
+   *
+   * @param {number} price - Price in kobo (will be divided by 100 automatically)
+   * @returns {string} Formatted currency string (e.g., "₦50")
+   */
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
+      currency: "NGN", // Nigerian Naira
+      minimumFractionDigits: 0, // No decimal places for whole numbers
     }).format(price);
   };
 
+  // Loading State: Show spinner while verifying payment
   if (status === "loading") {
     return (
       <div className="bg-black text-white min-h-screen">

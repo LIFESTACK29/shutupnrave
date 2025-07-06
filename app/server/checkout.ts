@@ -1,3 +1,19 @@
+/**
+ * shutupnraveee Checkout Server Actions
+ *
+ * This file handles the complete ticketing flow:
+ * 1. Payment initialization with Paystack
+ * 2. Payment verification and order confirmation
+ * 3. QR code generation and cloud hosting
+ * 4. Email notification with React Email templates
+ *
+ * External Services:
+ * - Paystack: Payment processing
+ * - Cloudinary: QR code hosting for email compatibility
+ * - Resend: Email delivery service
+ * - MongoDB: Order and user data persistence
+ */
+
 "use server";
 
 import { Resend } from "resend";
@@ -16,16 +32,21 @@ import {
   Order,
 } from "@/types";
 
+// Initialize external services
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Configure Cloudinary
+// Configure Cloudinary for QR code hosting
+// This ensures QR codes work in all email clients (Gmail, Outlook, etc.)
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Form validation schema
+// ===== VALIDATION SCHEMAS =====
+// These schemas validate input data before processing
+// Using Zod for runtime type checking and validation
+
 const CheckoutFormSchema = z.object({
   fullName: z.string().min(4, "Full name must be at least 4 characters"),
   phone: z
@@ -36,16 +57,23 @@ const CheckoutFormSchema = z.object({
 });
 
 const OrderDataSchema = z.object({
-  ticketType: z.string(),
+  ticketType: z.string(), // "Solo Vibes" or "Geng Energy"
   quantity: z.number().min(1),
-  subtotal: z.number().min(1),
-  processingFee: z.number().min(0),
-  total: z.number().min(1),
+  subtotal: z.number().min(1), // Amount in kobo (NGN * 100)
+  processingFee: z.number().min(0), // Processing fee in kobo
+  total: z.number().min(1), // Final amount in kobo
 });
 
-// Types are now imported from @/types
+// Types are now imported from @/types for better maintainability
 
-// Generate custom order ID
+// ===== UTILITY FUNCTIONS =====
+
+/**
+ * Generates a human-readable order ID for customer reference
+ * Format: ORD-YYYY-XXXXXX (e.g., ORD-2025-ABC123)
+ *
+ * @returns {string} Custom order ID
+ */
 function generateOrderId(): string {
   // const timestamp = Date.now();
   const year = new Date().getFullYear();
@@ -53,7 +81,14 @@ function generateOrderId(): string {
   return `ORD-${year}-${randomSuffix}`;
 }
 
-// Get consistent base price for each ticket type
+/**
+ * Returns consistent base price for each ticket type
+ * This ensures pricing consistency across all orders
+ * Prices are in kobo (NGN * 100) for Paystack compatibility
+ *
+ * @param {string} ticketTypeName - The name of the ticket type
+ * @returns {number} Price in kobo
+ */
 function getTicketBasePrice(ticketTypeName: string): number {
   switch (ticketTypeName) {
     case "Solo Vibes":
@@ -65,17 +100,37 @@ function getTicketBasePrice(ticketTypeName: string): number {
   }
 }
 
-// Initialize Paystack payment
+// ===== MAIN PAYMENT FUNCTIONS =====
+
+/**
+ * Initializes a payment session with Paystack
+ *
+ * This is the first step in the payment flow:
+ * 1. Validates user input and order data
+ * 2. Creates or updates user in database
+ * 3. Creates or finds ticket type with consistent pricing
+ * 4. Generates custom order ID for customer reference
+ * 5. Creates pending order with order items
+ * 6. Initializes Paystack payment session
+ * 7. Returns payment URL for frontend redirect
+ *
+ * @param {CheckoutFormData} userData - Customer form data (name, email, phone)
+ * @param {OrderData} orderData - Order details (ticket type, quantity, pricing)
+ * @returns {Promise<PaymentInitResponse>} Payment initialization result
+ */
 export async function initializePayment(
   userData: CheckoutFormData,
   orderData: OrderData
 ): Promise<PaymentInitResponse> {
   try {
-    // Validate input data
+    // Step 1: Validate input data using Zod schemas
+    // This ensures data integrity before database operations
     const validatedUser = CheckoutFormSchema.parse(userData);
     const validatedOrder = OrderDataSchema.parse(orderData);
 
-    // Create or update user
+    // Step 2: Create or update user in database
+    // Uses upsert to handle both new and returning customers
+    // This ensures no duplicate users while keeping data fresh
     const user = await prisma.user.upsert({
       where: { email: validatedUser.email },
       update: {
@@ -89,13 +144,15 @@ export async function initializePayment(
       },
     });
 
-    // Get or create ticket type (find by name, create once with consistent info)
+    // Step 3: Get or create ticket type with consistent pricing
+    // We only have 2 ticket types, so we find existing or create with base price
     let ticketType = await prisma.ticketType.findFirst({
       where: { name: validatedOrder.ticketType },
     });
 
     if (!ticketType) {
-      // Create ticket type with consistent pricing
+      // Create ticket type with consistent pricing from our base price function
+      // This ensures all "Solo Vibes" tickets cost the same, etc.
       const basePrice = getTicketBasePrice(validatedOrder.ticketType);
       ticketType = await prisma.ticketType.create({
         data: {
@@ -106,19 +163,22 @@ export async function initializePayment(
       });
     }
 
-    // Generate custom order ID
+    // Step 4: Generate custom order ID for customer reference
+    // This creates a human-readable ID separate from MongoDB's ObjectId
     const customOrderId = generateOrderId();
 
-    // Create pending order
+    // Step 5: Create pending order in database
+    // This creates the order record before payment to track the transaction
+    // Order starts as PENDING and gets updated after successful payment
     const order = await prisma.order.create({
       data: {
-        orderId: customOrderId,
+        orderId: customOrderId, // Our custom readable ID
         userId: user.id,
         subtotal: validatedOrder.subtotal,
         processingFee: validatedOrder.processingFee,
         total: validatedOrder.total,
-        status: "PENDING",
-        paymentStatus: "PENDING",
+        status: "PENDING", // Will be CONFIRMED after payment
+        paymentStatus: "PENDING", // Will be PAID after payment
         orderItems: {
           create: {
             ticketTypeId: ticketType.id,
@@ -129,16 +189,17 @@ export async function initializePayment(
         },
       },
       include: {
-        user: true,
+        user: true, // Include user data for email later
         orderItems: {
           include: {
-            ticketType: true,
+            ticketType: true, // Include ticket type for order details
           },
         },
       },
     });
 
-    // Initialize Paystack payment using the custom order ID
+    // Step 6: Initialize Paystack payment session
+    // This creates a payment link that redirects user to Paystack checkout
     const paystackResponse = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -148,11 +209,12 @@ export async function initializePayment(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          reference: order.orderId, // Use custom order ID as reference
+          reference: order.orderId, // Use our custom order ID as payment reference
           email: validatedUser.email,
-          amount: validatedOrder.total * 100, // Paystack expects amount in kobo
-          currency: "NGN",
+          amount: validatedOrder.total * 100, // Paystack expects amount in kobo (multiply by 100)
+          currency: "NGN", // Nigerian Naira
           metadata: {
+            // Additional data for payment tracking and verification
             orderId: order.orderId,
             userId: user.id,
             ticketType: validatedOrder.ticketType,
@@ -171,13 +233,14 @@ export async function initializePayment(
 
     const paystackData = await paystackResponse.json();
 
+    // Step 7: Return payment URL for frontend redirect
     return {
       success: true,
       data: {
-        orderId: order.orderId, // Return custom order ID, not MongoDB ID
-        paymentUrl: paystackData.data.authorization_url,
+        orderId: order.orderId, // Return custom order ID for tracking
+        paymentUrl: paystackData.data.authorization_url, // Redirect URL for payment
         accessCode: paystackData.data.access_code,
-        reference: paystackData.data.reference,
+        reference: paystackData.data.reference, // Paystack's reference ID
       },
     };
   } catch (error) {
@@ -192,12 +255,25 @@ export async function initializePayment(
   }
 }
 
-// Verify payment and complete order
+/**
+ * Verifies payment status with Paystack and completes the order
+ *
+ * This is called after the user returns from Paystack payment:
+ * 1. Verifies payment status with Paystack API
+ * 2. Updates order status to CONFIRMED if payment successful
+ * 3. Generates and uploads QR code to Cloudinary
+ * 4. Sends confirmation email with ticket details and QR code
+ * 5. Returns complete order data for success page
+ *
+ * @param {string} reference - The payment reference (our custom order ID)
+ * @returns {Promise<PaymentVerificationResponse>} Verification result with order data
+ */
 export async function verifyPayment(
   reference: string
 ): Promise<PaymentVerificationResponse> {
   try {
-    // Verify payment with Paystack
+    // Step 1: Verify payment status with Paystack API
+    // This ensures the payment was actually completed successfully
     const paystackResponse = await fetch(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
@@ -217,24 +293,26 @@ export async function verifyPayment(
       throw new Error("Payment was not successful");
     }
 
-    // Update order status using the MongoDB ID
+    // Step 2: Update order status to confirmed
+    // This marks the order as complete and paid in our database
     const order = await prisma.order.update({
-      where: { orderId: reference },
+      where: { orderId: reference }, // Using our custom order ID
       data: {
-        status: "CONFIRMED",
-        paymentStatus: "PAID",
+        status: "CONFIRMED", // Order is now confirmed
+        paymentStatus: "PAID", // Payment is complete
       },
       include: {
-        user: true,
+        user: true, // Include user data for success page and email
         orderItems: {
           include: {
-            ticketType: true,
+            ticketType: true, // Include ticket details for display
           },
         },
       },
     });
 
-    // Send confirmation email
+    // Step 3: Send confirmation email with QR code
+    // This generates QR code, uploads to Cloudinary, and sends email
     await sendOrderConfirmationEmail(order);
 
     return {
@@ -244,12 +322,13 @@ export async function verifyPayment(
   } catch (error) {
     console.error("Payment verification error:", error);
 
-    // Update order status to failed
+    // Error handling: Update order status to failed
+    // This ensures we track failed payments for debugging and customer support
     try {
       await prisma.order.update({
         where: { orderId: reference },
         data: {
-          paymentStatus: "FAILED",
+          paymentStatus: "FAILED", // Mark payment as failed
         },
       });
     } catch (dbError) {
@@ -264,9 +343,22 @@ export async function verifyPayment(
   }
 }
 
-// Send order confirmation email using React Email template
+/**
+ * Sends order confirmation email with QR code
+ *
+ * This function:
+ * 1. Formats ticket data for email template
+ * 2. Generates QR code linking to admin verification page
+ * 3. Uploads QR code to Cloudinary for email compatibility
+ * 4. Renders React Email template to HTML
+ * 5. Sends email via Resend service
+ *
+ * @param {Order} order - Complete order data with user and items
+ */
 async function sendOrderConfirmationEmail(order: Order) {
   try {
+    // Step 1: Format ticket details for email template
+    // This creates a clean structure for the email display
     const ticketDetails = order.orderItems.map((item) => ({
       type: item.ticketType.name,
       quantity: item.quantity,
@@ -274,20 +366,23 @@ async function sendOrderConfirmationEmail(order: Order) {
       totalPrice: item.totalPrice,
     }));
 
-    // Generate QR code with admin page link
+    // Step 2: Generate QR code with admin verification link
+    // QR code contains URL to admin page for order verification
     const adminPageUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin-page/${order.orderId}`;
 
-    // Generate QR code as buffer
+    // Generate QR code as buffer for upload to Cloudinary
+    // Buffer format is needed for cloud upload
     const qrCodeBuffer = await QRCode.toBuffer(adminPageUrl, {
-      width: 200,
-      margin: 2,
+      width: 200, // 200x200 pixel QR code
+      margin: 2, // White margin around QR code
       color: {
-        dark: "#000000",
-        light: "#FFFFFF",
+        dark: "#000000", // Black QR code
+        light: "#FFFFFF", // White background
       },
     });
 
-    // Upload QR code to Cloudinary
+    // Step 3: Upload QR code to Cloudinary for email compatibility
+    // Gmail and other email clients block data URLs, so we need hosted images
     let qrCodeUrl;
     try {
       const qrCodeUpload = await new Promise((resolve, reject) => {
@@ -295,8 +390,8 @@ async function sendOrderConfirmationEmail(order: Order) {
           .upload_stream(
             {
               resource_type: "image",
-              public_id: `qr-codes/${order.orderId}`,
-              folder: "shutupnrave/qr-codes",
+              public_id: `qr-codes/${order.orderId}`, // Unique filename based on order ID
+              folder: "shutupnrave/qr-codes", // Organized in dedicated folder
             },
             (error, result) => {
               if (error) reject(error);
@@ -306,10 +401,12 @@ async function sendOrderConfirmationEmail(order: Order) {
           .end(qrCodeBuffer);
       });
 
-      qrCodeUrl = (qrCodeUpload as any).secure_url;
+      // Extract secure HTTPS URL from Cloudinary response
+      qrCodeUrl = (qrCodeUpload as { secure_url: string }).secure_url;
     } catch (error) {
       console.error("Failed to upload QR code to Cloudinary:", error);
-      // Fallback to data URL if Cloudinary fails
+      // Fallback to data URL if Cloudinary upload fails
+      // This may not work in all email clients but ensures email still sends
       qrCodeUrl = await QRCode.toDataURL(adminPageUrl, {
         width: 200,
         margin: 2,
@@ -320,27 +417,29 @@ async function sendOrderConfirmationEmail(order: Order) {
       });
     }
 
-    // Render the React Email template to HTML
+    // Step 4: Render React Email template to HTML
+    // This converts our React Email components to HTML for email clients
     const emailHtml = await render(
       OrderConfirmationEmail({
         customerName: order.user.fullName,
-        orderId: order.orderId,
-        ticketDetails,
+        orderId: order.orderId, // Our custom readable order ID
+        ticketDetails, // Formatted ticket information
         subtotal: order.subtotal,
         processingFee: order.processingFee,
         total: order.total,
         eventDate: order.eventDate,
         eventTime: order.eventTime,
         eventLocation: order.eventLocation,
-        qrCodeDataUrl: qrCodeUrl,
+        qrCodeDataUrl: qrCodeUrl, // Hosted QR code URL from Cloudinary
       })
     );
 
+    // Step 5: Send email via Resend service
     const emailResponse = await resend.emails.send({
-      from: `shutupnraveee <${process.env.RESEND_FROM_EMAIL}>`,
-      to: [order.user.email],
-      subject: "🎉 Your shutupnraveee 2025 Tickets Are Here!",
-      html: emailHtml,
+      from: `shutupnraveee <${process.env.RESEND_FROM_EMAIL}>`, // Configured sender email
+      to: [order.user.email], // Customer's email address
+      subject: "🎉 Your shutupnraveee 2025 Tickets Are Here!", // Email subject line
+      html: emailHtml, // Rendered HTML email content
     });
 
     console.log("Email sent successfully:", emailResponse);
@@ -351,16 +450,28 @@ async function sendOrderConfirmationEmail(order: Order) {
   }
 }
 
-// Get order details
+/**
+ * Retrieves a complete order by order ID
+ *
+ * This function is used by:
+ * - Payment success page to display order details
+ * - Admin verification page to check order status
+ * - Email confirmation system for order data
+ *
+ * @param {string} orderId - The custom order ID (ORD-YYYY-XXXXXX format)
+ * @returns {Promise<OrderResponse>} Order data with user and items, or error
+ */
 export async function getOrder(orderId: string): Promise<OrderResponse> {
   try {
+    // Query database for order using our custom order ID
+    // Include all related data needed for display and verification
     const order = await prisma.order.findUnique({
-      where: { orderId },
+      where: { orderId }, // Using our custom order ID field
       include: {
-        user: true,
+        user: true, // Customer information
         orderItems: {
           include: {
-            ticketType: true,
+            ticketType: true, // Ticket details and pricing
           },
         },
       },
@@ -368,7 +479,7 @@ export async function getOrder(orderId: string): Promise<OrderResponse> {
 
     return {
       success: true,
-      order: order || undefined,
+      order: order || undefined, // Return undefined if order not found
     };
   } catch (error) {
     console.error("Get order error:", error);

@@ -1,3 +1,21 @@
+/**
+ * Order Confirmation Email Template
+ *
+ * This React Email template is sent to customers after successful payment.
+ *
+ * Features:
+ * 1. Professional branding with Cloudinary-hosted logo
+ * 2. Complete order details and ticket information
+ * 3. QR code for event verification (hosted on Cloudinary)
+ * 4. Event details (date, time, location)
+ * 5. Pricing breakdown with Nigerian Naira formatting
+ * 6. Social media links and contact information
+ * 7. Mobile-responsive design for all email clients
+ * 8. Clear next steps for attendees
+ *
+ * The template is rendered to HTML server-side and sent via Resend.
+ */
+
 import {
   Body,
   Button,
@@ -26,16 +44,24 @@ export const OrderConfirmationEmail = ({
   eventDate,
   eventTime,
   eventLocation,
-  qrCodeDataUrl,
+  qrCodeDataUrl, // Cloudinary-hosted QR code URL for email compatibility
 }: OrderConfirmationEmailProps) => {
+  /**
+   * Formats price values to Nigerian Naira currency
+   * Same formatting as used throughout the application
+   *
+   * @param {number} price - Price in kobo (NGN * 100)
+   * @returns {string} Formatted currency string (e.g., "₦50")
+   */
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
+      currency: "NGN", // Nigerian Naira
+      minimumFractionDigits: 0, // No decimal places for whole numbers
     }).format(price);
   };
 
+  // Email preview text shown in email client preview panes
   const previewText = `Your shutupnraveee 2025 tickets are confirmed! Order ${orderId}`;
 
   return (
