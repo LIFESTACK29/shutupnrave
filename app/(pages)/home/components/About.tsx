@@ -49,7 +49,7 @@ export default function About() {
 
                     {/* Simple CTA */}
                     <div className="space-y-3">
-                        <Link href='/tickets' className="bg-yellow-400 text-black font-semibold py-2 px-6 cursor-pointer hover:bg-white duration-300 inline-block active:scale-95">
+                        <Link href='/tickets' className="bg-yellow-400 text-black font-semibold py-2 px-6 cursor-pointer hover:bg-white duration-300 inline-block active:scale-95 cursor-pointer">
                             GET TICKETS
                         </Link>
                     </div>

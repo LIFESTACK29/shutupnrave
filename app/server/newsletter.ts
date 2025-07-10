@@ -55,7 +55,7 @@ export async function subscribeToNewsletter(
     // 4. Return success response
     return {
       success: true,
-      message: "Thanks for subscribing! Check your inbox for updates.",
+      message: "Thanks for subscribing! Always check inbox for updates.",
     };
   } catch (error) {
     // Handle validation errors

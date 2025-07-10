@@ -64,10 +64,12 @@ export type Order = {
   total: number; // Final amount charged (in kobo)
   status: string; // Order status ("PENDING" | "CONFIRMED" | "CANCELLED")
   paymentStatus: string; // Payment status ("PENDING" | "PAID" | "FAILED")
+  isActive: boolean; // Whether the ticket is active/unused (default: true)
   eventName: string; // Name of the event
   eventDate: string; // Event date
   eventTime: string; // Event time
-  eventLocation: string; // Event location/venue
+  eventLocation: string; // Event venue/location
+  qrCodeUrl: string | null; // Cloudinary URL for QR code image
   createdAt: Date; // Order creation timestamp
   updatedAt: Date; // Last modification timestamp
   user: User; // Populated customer information

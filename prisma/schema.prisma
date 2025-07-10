@@ -8,7 +8,18 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+  // binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+// Admin User Model for authentication
+model Admin {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  password  String // This will store the hashed password
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
 }
 
 // Newsletter Subscriber Model
@@ -57,7 +68,7 @@ model TicketType {
 // Order Model (represents a checkout session)
 model Order {
   id String @id @default(auto()) @map("_id") @db.ObjectId
-  
+
   // Custom Order ID for customer reference (e.g., "ORD-2025-001")
   orderId String @unique
 
@@ -66,19 +77,23 @@ model Order {
   user   User   @relation(fields: [userId], references: [id])
 
   // Order Details
-  subtotal          Int // Total before fees (in kobo/cents)
-  processingFee     Int // Processing fee (in kobo/cents)
-  total             Int // Final total (in kobo/cents)
+  subtotal      Int // Total before fees (in kobo/cents)
+  processingFee Int // Processing fee (in kobo/cents)
+  total         Int // Final total (in kobo/cents)
 
   // Order Status
   status        OrderStatus   @default(PENDING)
   paymentStatus PaymentStatus @default(PENDING)
+  isActive      Boolean       @default(true) // Ticket activation status - becomes false when used
 
   // Event Information
   eventName     String @default("shutupnraveee 2025")
   eventDate     String @default("November 29, 2025")
   eventTime     String @default("12:00 PM - 10:00 PM")
   eventLocation String @default("Port Harcourt, Nigeria")
+
+  // QR Code Information
+  qrCodeUrl String? // Cloudinary URL for QR code image
 
   // Metadata
   createdAt DateTime @default(now())

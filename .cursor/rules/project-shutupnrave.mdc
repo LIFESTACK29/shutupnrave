@@ -1,0 +1,79 @@
+---
+alwaysApply: true
+# Authentication Rules
+
+1. Authentication should be handled at the page level, not in middleware
+   - Each protected page should use `requireAuth()` from `@/components/auth`
+   - Login page should use `redirectIfAuthenticated()` from `@/components/auth`
+
+2. Protected Routes:
+   - /admin-page/*
+   - Any route requiring authentication
+
+3. Implementation:
+   ```typescript
+   // Example for protected pages:
+   export default function AdminPage() {
+     requireAuth(); // Add at start of component
+     // ... rest of component
+   }
+
+   // Example for login page:
+   export default function LoginPage() {
+     redirectIfAuthenticated(); // Add at start of component
+     // ... rest of component
+   }
+   ```
+
+4. Security Considerations:
+   - Always verify authentication server-side
+   - Never rely solely on client-side checks
+   - Use httpOnly cookies for tokens
+   - Implement proper CSRF protection
+
+5. Error Handling:
+   - Failed auth should redirect to login
+   - Invalid sessions should be cleared
+   - Rate limit login attempts
+
+
+---
+6. Change Logging:
+   - Maintain a changelog in `updates.md` to track modifications
+   ```typescript
+   // Example implementation for logging updates
+   async function logUpdate(change: string) {
+     const fs = require('fs').promises;
+     const path = require('path');
+     
+     const timestamp = new Date().toISOString();
+     const updateEntry = `\n## ${timestamp}\n${change}\n`;
+     
+     try {
+       // Create updates.md if it doesn't exist or append to it
+       await fs.appendFile(
+         path.join(process.cwd(), 'updates.md'),
+         updateEntry,
+         'utf-8'
+       );
+     } catch (error) {
+       console.error('Failed to log update:', error);
+     }
+   }
+   ```
+
+   Example usage:
+   ```typescript
+   // After making significant changes:
+   await logUpdate(`
+   - Added new ticket verification endpoint
+   - Updated user schema with phone validation
+   - Implemented rate limiting on auth routes
+   `);
+   ```
+
+7. Benefits:
+   - Maintains development history
+   - Helps track feature implementation
+   - Provides context for future changes
+   - Facilitates team communication

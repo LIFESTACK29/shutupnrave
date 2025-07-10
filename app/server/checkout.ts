@@ -64,7 +64,7 @@ const OrderDataSchema = z.object({
   total: z.number().min(1), // Final amount in kobo
 });
 
-// Types are now imported from @/types for better maintainability
+// Types are now imported from @/types
 
 // ===== UTILITY FUNCTIONS =====
 
@@ -92,9 +92,9 @@ function generateOrderId(): string {
 function getTicketBasePrice(ticketTypeName: string): number {
   switch (ticketTypeName) {
     case "Solo Vibes":
-      return 5000; // 50 NGN in kobo
+      return 5000; // 5000 kobo = 50 NGN
     case "Geng Energy":
-      return 8000; // 80 NGN in kobo
+      return 8000; // 8000 kobo = 80 NGN
     default:
       throw new Error(`Unknown ticket type: ${ticketTypeName}`);
   }
@@ -231,16 +231,16 @@ export async function initializePayment(
       throw new Error("Failed to initialize payment");
     }
 
-    const paystackData = await paystackResponse.json();
+    const { data } = await paystackResponse.json();
 
     // Step 7: Return payment URL for frontend redirect
     return {
       success: true,
       data: {
         orderId: order.orderId, // Return custom order ID for tracking
-        paymentUrl: paystackData.data.authorization_url, // Redirect URL for payment
-        accessCode: paystackData.data.access_code,
-        reference: paystackData.data.reference, // Paystack's reference ID
+        paymentUrl: data.authorization_url, // Redirect URL for payment
+        accessCode: data.access_code,
+        reference: data.reference, // Paystack's reference ID
       },
     };
   } catch (error) {
@@ -287,9 +287,9 @@ export async function verifyPayment(
       throw new Error("Payment verification failed");
     }
 
-    const paystackData = await paystackResponse.json();
+    const { data } = await paystackResponse.json();
 
-    if (paystackData.data.status !== "success") {
+    if (data.status !== "success") {
       throw new Error("Payment was not successful");
     }
 
@@ -311,13 +311,27 @@ export async function verifyPayment(
       },
     });
 
-    // Step 3: Send confirmation email with QR code
+    // Step 3: Send confirmation email with QR code and save QR URL
     // This generates QR code, uploads to Cloudinary, and sends email
-    await sendOrderConfirmationEmail(order);
+    const qrCodeUrl = await sendOrderConfirmationEmail(order);
+    
+    // Update order with QR code URL for admin verification
+    const updatedOrder = await prisma.order.update({
+      where: { orderId: reference },
+      data: { qrCodeUrl },
+      include: {
+        user: true,
+        orderItems: {
+          include: {
+            ticketType: true,
+          },
+        },
+      },
+    });
 
     return {
       success: true,
-      order,
+      order: updatedOrder,
     };
   } catch (error) {
     console.error("Payment verification error:", error);
@@ -354,8 +368,9 @@ export async function verifyPayment(
  * 5. Sends email via Resend service
  *
  * @param {Order} order - Complete order data with user and items
+ * @returns {Promise<string>} QR code URL from Cloudinary
  */
-async function sendOrderConfirmationEmail(order: Order) {
+async function sendOrderConfirmationEmail(order: Order): Promise<string> {
   try {
     // Step 1: Format ticket details for email template
     // This creates a clean structure for the email display
@@ -376,8 +391,8 @@ async function sendOrderConfirmationEmail(order: Order) {
       width: 200, // 200x200 pixel QR code
       margin: 2, // White margin around QR code
       color: {
-        dark: "#000000", // Black QR code
-        light: "#FFFFFF", // White background
+        dark: "#FDC700", // yellow QR code
+        light: "#000000", // black background
       },
     });
 
@@ -436,14 +451,14 @@ async function sendOrderConfirmationEmail(order: Order) {
 
     // Step 5: Send email via Resend service
     const emailResponse = await resend.emails.send({
-      from: `shutupnraveee <${process.env.RESEND_FROM_EMAIL}>`, // Configured sender email
+      from: `Shutupnraveee <${process.env.RESEND_FROM_EMAIL}>`, // Configured sender email
       to: [order.user.email], // Customer's email address
       subject: "🎉 Your shutupnraveee 2025 Tickets Are Here!", // Email subject line
       html: emailHtml, // Rendered HTML email content
     });
 
     console.log("Email sent successfully:", emailResponse);
-    return emailResponse;
+    return qrCodeUrl; // Return the QR code URL for storage in database
   } catch (error) {
     console.error("Email sending error:", error);
     throw error;
@@ -486,6 +501,210 @@ export async function getOrder(orderId: string): Promise<OrderResponse> {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to get order",
+    };
+  }
+}
+
+// ===== ADMIN VERIFICATION FUNCTIONS =====
+
+/**
+ * Verifies and deactivates a ticket order (admin use only)
+ * 
+ * This function:
+ * 1. Retrieves the order and verifies it exists and is active
+ * 2. Marks the order as inactive (used/verified)
+ * 3. Deletes the QR code from Cloudinary
+ * 4. Returns the updated order data
+ * 
+ * @param {string} orderId - The custom order ID to verify
+ * @returns {Promise<{ success: boolean; order?: Order; error?: string; message?: string }>}
+ */
+export async function verifyAndDeactivateTicket(orderId: string): Promise<{
+  success: boolean;
+  order?: Order;
+  error?: string;
+  message?: string;
+}> {
+  try {
+    // Step 1: Get the order with all related data
+    const existingOrder = await prisma.order.findUnique({
+      where: { orderId },
+      include: {
+        user: true,
+        orderItems: {
+          include: {
+            ticketType: true,
+          },
+        },
+      },
+    });
+
+    if (!existingOrder) {
+      return {
+        success: false,
+        error: "Order not found",
+      };
+    }
+
+    // Step 2: Check if order is valid for verification
+    if (existingOrder.paymentStatus !== "PAID") {
+      return {
+        success: false,
+        error: "Order payment is not confirmed",
+      };
+    }
+
+    if (existingOrder.status !== "CONFIRMED") {
+      return {
+        success: false,
+        error: "Order is not confirmed",
+      };
+    }
+
+    if (!existingOrder.isActive) {
+      return {
+        success: false,
+        error: "Ticket has already been used",
+        order: existingOrder,
+      };
+    }
+
+    // Step 3: Delete QR code from Cloudinary if it exists
+    if (existingOrder.qrCodeUrl) {
+      try {
+        // Extract public_id from Cloudinary URL
+        const urlParts = existingOrder.qrCodeUrl.split('/');
+        const publicIdWithExt = urlParts[urlParts.length - 1];
+        const publicId = publicIdWithExt.split('.')[0];
+        const fullPublicId = `shutupnrave/qr-codes/${publicId}`;
+
+        await cloudinary.uploader.destroy(fullPublicId);
+        console.log(`QR code deleted from Cloudinary: ${fullPublicId}`);
+      } catch (cloudinaryError) {
+        console.error("Failed to delete QR code from Cloudinary:", cloudinaryError);
+        // Continue with order deactivation even if QR deletion fails
+      }
+    }
+
+    // Step 4: Update order to inactive status
+    const updatedOrder = await prisma.order.update({
+      where: { orderId },
+      data: {
+        isActive: false,
+        qrCodeUrl: null, // Remove QR code URL since it's been deleted
+      },
+      include: {
+        user: true,
+        orderItems: {
+          include: {
+            ticketType: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      order: updatedOrder,
+      message: "Ticket has been successfully verified and deactivated",
+    };
+  } catch (error) {
+    console.error("Ticket verification error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to verify ticket",
+    };
+  }
+}
+
+/**
+ * Gets order details for admin verification (read-only)
+ * 
+ * This function is used by the admin page to display order information
+ * without making any changes to the order status.
+ * 
+ * @param {string} orderId - The custom order ID to retrieve
+ * @returns {Promise<OrderResponse>} Order data for admin verification
+ */
+export async function getOrderForAdmin(orderId: string): Promise<OrderResponse> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { orderId },
+      include: {
+        user: true,
+        orderItems: {
+          include: {
+            ticketType: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      order: order || undefined,
+    };
+  } catch (error) {
+    console.error("Get order for admin error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get order",
+    };
+  }
+}
+
+/**
+ * Deactivates a ticket by setting isActive to false
+ * Used by admin to mark tickets as used/invalid
+ * 
+ * @param {string} orderId - The custom order ID to deactivate
+ * @returns {Promise<{success: boolean; error?: string}>}
+ */
+export async function deactivateTicket(orderId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    // Find and update the order
+    const order = await prisma.order.findUnique({
+      where: { orderId }
+    });
+
+    if (!order) {
+      return {
+        success: false,
+        error: "Order not found"
+      };
+    }
+
+    if (order.paymentStatus !== 'PAID') {
+      return {
+        success: false,
+        error: "Cannot deactivate unpaid tickets"
+      };
+    }
+
+    if (!order.isActive) {
+      return {
+        success: false,
+        error: "Ticket is already deactivated"
+      };
+    }
+
+    // Update the order to deactivate the ticket
+    await prisma.order.update({
+      where: { orderId },
+      data: { isActive: false }
+    });
+
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error("Deactivate ticket error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to deactivate ticket"
     };
   }
 }

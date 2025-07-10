@@ -154,14 +154,14 @@ function PaymentSuccessContent() {
               <div className="space-y-3">
                 <Button
                   onClick={() => router.push("/tickets")}
-                  className="w-full bg-yellow-400 text-black hover:bg-yellow-300"
+                  className="w-full bg-yellow-400 text-black hover:bg-yellow-300 cursor-pointer"
                 >
                   Try Again
                 </Button>
                 <Button
                   onClick={() => router.push("/")}
                   variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10"
+                  className="w-full border-white/20 text-white hover:bg-white/10 cursor-pointer"
                 >
                   Back to Home
                 </Button>

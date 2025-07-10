@@ -109,7 +109,7 @@ export default function FAQ() {
                         Still have questions?
                     </p>
                     <Link href="mailto:info@shutupnrave.com.ng"
-                        className="border-2 border-yellow-400 text-yellow-400 hover:bg-white hover:border-white hover:text-black font-semibold py-3 px-8 transition-colors duration-300 inline-block"
+                        className="border-2 border-yellow-400 text-yellow-400 hover:bg-white hover:border-white hover:text-black font-semibold py-3 px-8 transition-colors duration-300 inline-block cursor-pointer"
                     >
                         Contact Us
                     </Link>
