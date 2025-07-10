@@ -5,13 +5,13 @@ To run the shutupnrave application with full checkout functionality, you need to
 ## Database Configuration
 
 ```
-MONGO_URL="mongodb://localhost:27017/shutupnrave"
+DATABASE_URL="mongodb://localhost:27017/shutupnrave"
 ```
 
 Or for MongoDB Atlas:
 
 ```
-MONGO_URL="mongodb+srv://username:password@cluster.mongodb.net/shutupnrave"
+DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/shutupnrave"
 ```
 
 ## Paystack Configuration
@@ -147,9 +147,9 @@ You can customize the template by editing the React components and styles in the
 
 ```bash
 # Database Configuration
-MONGO_URL="mongodb://localhost:27017/shutupnrave"
+DATABASE_URL="mongodb://localhost:27017/shutupnrave"
 # OR for MongoDB Atlas:
-# MONGO_URL="mongodb+srv://username:password@cluster.mongodb.net/shutupnrave"
+# DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/shutupnrave"
 
 # Paystack Configuration
 PAYSTACK_PUBLIC_KEY="pk_test_your_paystack_public_key_here"
