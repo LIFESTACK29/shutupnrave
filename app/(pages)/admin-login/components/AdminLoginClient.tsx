@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,10 +29,13 @@ const adminLoginSchema = z.object({
 
 type AdminLoginForm = z.infer<typeof adminLoginSchema>;
 
-export default function AdminLoginClient() {
+interface AdminLoginClientProps {
+  returnUrl?: string;
+}
+
+export default function AdminLoginClient({ returnUrl }: AdminLoginClientProps) {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const {
     register,
@@ -52,8 +55,7 @@ export default function AdminLoginClient() {
       const result = await loginAdmin(data.email, data.password);
 
       if (result.success) {
-        // Get return URL from search params, validate it's an admin route
-        const returnUrl = searchParams.get('returnUrl');
+        // Use return URL prop, validate it's an admin route
         const destination = returnUrl && returnUrl.startsWith('/admin-page') 
           ? decodeURIComponent(returnUrl) 
           : '/admin-page';

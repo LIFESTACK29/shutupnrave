@@ -13,6 +13,7 @@
 - **Fallback Behavior**: If no return URL or invalid URL, defaults to main admin dashboard
 - **Cross-Page Compatibility**: Works for any admin page that requires authentication, not just order details
 - **Production Ready**: Secure implementation prevents malicious redirects outside admin area
+- **Fixed Suspense Boundary Error**: Removed `useSearchParams()` from client component and passed returnUrl as prop from server component to avoid Next.js build errors
 
 ## 2025-01-08T03:00:30.456Z
 - **Fixed sorting for orders and emails to display most recent first**
