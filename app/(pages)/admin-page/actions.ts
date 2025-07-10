@@ -251,7 +251,8 @@ export async function getOrdersWithFilters(
             ticketType: true
           }
         }
-      }
+      },
+      orderBy: { createdAt: 'desc' }
       })
     ]);
 

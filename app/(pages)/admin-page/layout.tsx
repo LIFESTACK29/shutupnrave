@@ -10,6 +10,8 @@ export default async function AdminLayout({
   const admin = await verifyAdminToken();
   
   if (!admin) {
+    // Note: This layout-level redirect will be overridden by page-level redirects
+    // for specific pages like order details that need to preserve the full URL
     redirect('/admin-login');
   }
 

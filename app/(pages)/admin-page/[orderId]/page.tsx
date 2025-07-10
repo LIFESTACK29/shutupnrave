@@ -41,7 +41,10 @@ export default async function OrderDetailsPage({ params }: PageProps) {
   // Check if user is authenticated
   const admin = await verifyAdminToken();
   if (!admin) {
-    redirect('/admin-login');
+    // Await params to get orderId for return URL
+    const { orderId } = await params;
+    const returnUrl = `/admin-page/${orderId}`;
+    redirect(`/admin-login?returnUrl=${encodeURIComponent(returnUrl)}`);
   }
 
   // Await the params Promise in Next.js 15

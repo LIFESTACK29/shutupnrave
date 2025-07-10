@@ -1,5 +1,31 @@
 # Development Updates Log
 
+## 2025-01-08T03:15:45.234Z
+- **Fixed QR code login redirect issue - users now return to original scanned URL after login**
+- **Implemented Return URL System**: Added proper redirect functionality to preserve original destination after authentication
+- **Enhanced Order Details Page**: Modified redirect to include `returnUrl` parameter when user is not authenticated
+- **Updated Admin Login Page**: Added support for `returnUrl` search parameter with proper validation
+- **Improved Login Client Component**: Added `useSearchParams` hook to capture and redirect to return URL after successful login
+- **Security Validation**: Return URLs are validated to only allow `/admin-page` routes to prevent redirect attacks
+- **QR Code Flow Fix**: When scanning QR code → login → now correctly redirects to scanned order details page
+- **User Experience Enhancement**: No more losing the original destination when accessing admin pages while logged out
+- **URL Encoding Safety**: Proper URL encoding/decoding to handle special characters in order IDs
+- **Fallback Behavior**: If no return URL or invalid URL, defaults to main admin dashboard
+- **Cross-Page Compatibility**: Works for any admin page that requires authentication, not just order details
+- **Production Ready**: Secure implementation prevents malicious redirects outside admin area
+
+## 2025-01-08T03:00:30.456Z
+- **Fixed sorting for orders and emails to display most recent first**
+- **Enhanced Orders Sorting**: Added missing `orderBy: { createdAt: 'desc' }` to `allOrders` query in `getOrdersWithFilters` function
+- **Consistent Order Display**: Both paginated orders and statistics orders now sorted by creation date (newest first)
+- **Email Sorting Already Correct**: Confirmed that newsletter subscribers and customer emails already have proper sorting
+- **Database-Level Sorting**: All queries now use database-level sorting for optimal performance
+- **Admin Dashboard Improvement**: Orders table and statistics now consistently show most recent orders at the top
+- **Email Management Enhancement**: Email lists display newest subscribers and customers first
+- **User Experience**: Admins now see the latest activity first when viewing orders and emails
+- **Performance Optimized**: Database sorting is more efficient than client-side sorting for large datasets
+- **Real-time Updates**: New orders and emails will appear at the top of lists automatically
+
 ## 2025-01-08T02:45:15.123Z
 - **Enhanced ticket deactivation with automatic QR code cleanup**
 - **Updated `deactivateTicket` function** to delete QR code images from Cloudinary when tickets are deactivated
