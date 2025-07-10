@@ -1,11 +1,10 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, User, Mail, Phone, Calendar, MapPin, CreditCard, Package, AlertCircle } from 'lucide-react';
 import { getOrderForAdmin } from '@/app/server/checkout';
-import { verifyAdminToken } from '@/app/server/auth';
 import { CopyButton, TicketStatus, DeactivateButton } from './components/OrderDetailsClient';
 
 // Format currency in Naira
@@ -38,15 +37,6 @@ interface PageProps {
 }
 
 export default async function OrderDetailsPage({ params }: PageProps) {
-  // Check if user is authenticated
-  const admin = await verifyAdminToken();
-  if (!admin) {
-    // Await params to get orderId for return URL
-    const { orderId } = await params;
-    const returnUrl = `/admin-page/${orderId}`;
-    redirect(`/admin-login?returnUrl=${encodeURIComponent(returnUrl)}`);
-  }
-
   // Await the params Promise in Next.js 15
   const { orderId } = await params;
   

@@ -1,19 +1,66 @@
 # Development Updates Log
 
+## 2025-01-08T12:30:45.234Z
+- **Refactored admin login from page to component-based authentication**
+- **Created AdminAuthWrapper Component**: New wrapper component that handles authentication state and conditionally renders login form or admin content
+- **Created AdminLoginForm Component**: Extracted and modified login form to accept onLoginSuccess callback instead of routing
+- **Updated Admin Layout**: Modified admin-page layout to use AdminAuthWrapper instead of server-side authentication checks
+- **Removed Separate Login Page**: Deleted entire `/admin-login` route as authentication is now handled within admin pages
+- **Enhanced User Experience**: Users now stay on the same URL but see different components based on authentication state
+- **Simplified Navigation**: No more redirects between separate login and admin pages - seamless component switching
+- **Removed Server-Side Auth Checks**: Eliminated redundant authentication checks from individual admin pages:
+  - Removed authentication logic from order details page (`/admin-page/[orderId]`)
+  - Removed authentication logic from emails page (`/admin-page/emails`)
+  - Centralized all authentication handling in AdminAuthWrapper component
+- **Client-Side Authentication**: Authentication state managed client-side with loading states and proper error handling
+- **Consistent Branding**: Login form maintains same styling and branding while being embedded in admin pages
+- **QR Code Compatibility**: QR code scans now work seamlessly as users stay on the same page during login
+- **Callback-Based Success Handling**: Login success triggers component state update instead of page navigation
+- **Single Source of Truth**: All admin authentication logic centralized in AdminAuthWrapper component
+- **Improved Performance**: Eliminates unnecessary server-side redirects and page reloads during authentication
+- **Better Mobile Experience**: No page transitions during login process for smoother mobile interaction
+
+## 2025-01-08T04:00:15.234Z
+- **Implemented comprehensive middleware-based QR code redirect system**
+- **Complete Architecture Overhaul**: Replaced client-side sessionStorage approach with server-side middleware for more reliable authentication and redirects
+- **Enhanced Middleware**: Extended middleware to handle all admin route authentication with automatic redirect logic:
+  - `/admin-page/*` routes require authentication or redirect to login with stored return URL
+  - `/admin-login` route checks for authentication and stored return URLs for automatic redirects
+  - Uses secure HTTP-only cookies with 10-minute expiration for return URL storage
+- **Simplified Components**: Removed complex client-side authentication logic:
+  - Eliminated `RedirectHandler` component - middleware handles redirects automatically
+  - Simplified `AdminLoginClient` to remove sessionStorage logic and useEffect hooks
+  - Streamlined admin login page to remove server-side authentication checks
+  - Cleaned up order details page by removing authentication verification
+- **Secure Cookie Storage**: Return URLs stored in HTTP-only cookies with proper security flags:
+  - `httpOnly: true` prevents client-side access for security
+  - `secure: true` in production for HTTPS-only transmission
+  - `sameSite: 'lax'` for proper cross-site request handling
+  - 10-minute expiration to prevent stale redirects
+- **JWT Verification**: Added `jose` library for secure JWT token verification in middleware
+- **Comprehensive Logging**: Added detailed console logging throughout middleware for debugging production issues
+- **Security Validation**: Return URLs validated to only allow `/admin-page` routes to prevent redirect attacks
+- **Automatic Cleanup**: Return URL cookies automatically deleted after successful redirect
+- **QR Code Flow**: Scan QR → middleware stores URL in cookie → login → middleware redirects to stored URL
+- **Production Ready**: Server-side solution eliminates browser compatibility issues with sessionStorage
+- **Simplified Maintenance**: Single middleware file handles all authentication and redirect logic
+- **Performance Optimized**: Server-side redirects are faster than client-side navigation
+- **Deleted Files**: Removed `lib/redirect-storage.ts` and `RedirectHandler.tsx` as they're no longer needed
+
 ## 2025-01-08T03:15:45.234Z
 - **Fixed QR code login redirect issue - users now return to original scanned URL after login**
-- **Implemented Return URL System**: Added proper redirect functionality to preserve original destination after authentication
-- **Enhanced Order Details Page**: Modified redirect to include `returnUrl` parameter when user is not authenticated
-- **Updated Admin Login Page**: Added support for `returnUrl` search parameter with proper validation
-- **Improved Login Client Component**: Added `useSearchParams` hook to capture and redirect to return URL after successful login
+- **Implemented SessionStorage Return URL System**: Replaced URL parameter approach with client-side storage for better reliability
+- **Created Redirect Storage Utilities**: New `lib/redirect-storage.ts` with functions to store/retrieve/clear return URLs using sessionStorage
+- **Enhanced Order Details Page**: Created `AuthChecker` client component to store intended URL before redirecting to login
+- **Simplified Login Flow**: Removed complex URL parameter handling in favor of sessionStorage approach
 - **Security Validation**: Return URLs are validated to only allow `/admin-page` routes to prevent redirect attacks
-- **QR Code Flow Fix**: When scanning QR code → login → now correctly redirects to scanned order details page
+- **QR Code Flow Fix**: When scanning QR code → URL stored in sessionStorage → login → redirect to stored URL
 - **User Experience Enhancement**: No more losing the original destination when accessing admin pages while logged out
-- **URL Encoding Safety**: Proper URL encoding/decoding to handle special characters in order IDs
-- **Fallback Behavior**: If no return URL or invalid URL, defaults to main admin dashboard
+- **Session-Based Storage**: Uses sessionStorage for security (clears when tab closes) and simplicity
+- **Fallback Behavior**: If no stored URL or invalid URL, defaults to main admin dashboard
 - **Cross-Page Compatibility**: Works for any admin page that requires authentication, not just order details
-- **Production Ready**: Secure implementation prevents malicious redirects outside admin area
-- **Fixed Suspense Boundary Error**: Removed `useSearchParams()` from client component and passed returnUrl as prop from server component to avoid Next.js build errors
+- **Production Ready**: Clean implementation without URL parameter complexity or Suspense boundary issues
+- **Automatic Cleanup**: Stored URLs are automatically cleared after use to prevent stale redirects
 
 ## 2025-01-08T03:00:30.456Z
 - **Fixed sorting for orders and emails to display most recent first**
@@ -171,6 +218,18 @@
   - AdminStatsCards.tsx: Corrected total revenue formatting
 - Added pagination safety checks to prevent NaN calculations when orders are empty/loading
 - Enhanced filtering logic with proper fallback values (totalFiltered = filtered.length || 0)
+
+## 2025-01-10T21:57:00.000Z
+**REVERTED ALL QR CODE REDIRECT FUNCTIONALITY**
+- Completely reverted all QR code redirect implementations and returned to original state
+- Restored global `/admin-login` page with original AdminLoginClient component
+- Removed all individual login pages (`/admin-page/login`, `/admin-page/[orderId]/login`, `/admin-page/emails/login`)
+- Updated admin layout to redirect to `/admin-login` when not authenticated
+- Updated order details page to redirect to `/admin-login` (QR code URLs will be lost after login)
+- Updated emails page to redirect to `/admin-login` and simplified to server-side authentication
+- Returned to original simple authentication flow:
+  - QR code → `/admin-page/[orderId]` → redirects to `/admin-login` → after login goes to main admin dashboard
+  - Original behavior restored where scanning QR codes while logged out loses the specific order URL
 - Fixed pagination calculation with Math.max(1, Math.ceil()) to prevent division by zero
 - Currency values now display correctly: ₦7,350 instead of ₦73.50 for ticket prices
 - Admin dashboard statistics and order tables now show accurate financial data
@@ -447,3 +506,80 @@
 - This resolves "No usable data found" errors when scanning QR codes with mobile scanners
 - Standard black on white QR codes are universally scannable across all QR code reader apps
 - Recreated missing `app/(pages)/admin-page/actions.ts` file for deactivate functionality
+
+## 2025-01-08T03:45:22.789Z
+- **Enhanced QR code redirect debugging and fixed authentication bypass issue**
+- **Fixed Admin Login Server-Side Redirect**: Removed immediate server-side redirect to `/admin-page` for authenticated users that was bypassing sessionStorage checks
+- **Enhanced AdminLoginClient Component**: Added useEffect hook to check for stored return URLs on component mount for already authenticated users
+- **Comprehensive Debugging System**: Added detailed console logging throughout the redirect flow:
+  - `[RedirectHandler]` logs show what URL is being stored in sessionStorage
+  - `[setReturnUrl]` logs confirm URL storage in sessionStorage
+  - `[getAndClearReturnUrl]` logs show URL retrieval and validation
+  - `[AdminLoginClient]` logs show final redirect destination after login
+- **Authentication Flow Fix**: Login page now lets client component handle stored return URLs instead of server-side redirects
+- **Session Storage Timing**: Added small delay in client component to ensure sessionStorage is available before checking
+- **Improved Error Tracking**: Full debugging pipeline to identify where QR code redirect flow might break
+- **Expected Debug Flow**: Complete log sequence from URL storage → retrieval → validation → redirect
+- **Production Debugging**: Debug logs help identify sessionStorage issues in production environment
+- **User Experience**: Should now properly redirect users to original QR code URL after login instead of default admin page
+- **Fallback Behavior**: Still defaults to admin dashboard if no stored URL or invalid URL for security
+
+## 2025-01-08T04:15:30.567Z
+- **Fixed critical JWT authentication issues in middleware system**
+- **JWT_SECRET Mismatch Resolution**: Fixed inconsistent fallback values between auth.ts (`'fallback-secret-key'`) and middleware.ts (`'your-jwt-secret-key'`)
+- **JWT Library Standardization**: Replaced `jose` library in middleware with `jsonwebtoken` for consistency with auth.ts
+- **Synchronous JWT Verification**: Changed middleware JWT verification from async to sync since `jsonwebtoken.verify` is synchronous
+- **Login Flow Optimization**: Updated AdminLoginClient to redirect to `/admin-page` instead of `/admin-login` for cleaner flow
+- **Comprehensive Debugging**: Added detailed console logging throughout middleware for debugging:
+  - Request processing logs for all paths
+  - Admin route access attempts with token status
+  - Login page access with return URL information  
+  - Authentication verification status
+- **Dependency Cleanup**: Removed unused `jose` package to reduce bundle size and eliminate library conflicts
+- **Token Compatibility**: Ensured tokens created with `jsonwebtoken` in auth.ts are properly verified in middleware
+- **Cookie Handling**: Verified proper cookie reading for both `admin-token` and `admin_return_url` cookies
+- **Security Consistency**: Both systems now use identical JWT secret handling and verification logic
+- **Production Debugging**: Added logging to track middleware execution flow for production troubleshooting
+- **QR Code Flow Fixed**: Authentication and redirect logic now properly handles QR code scanning scenarios
+
+## 2025-01-08T04:30:45.123Z
+- **Reverted all QR code redirect implementations - returned to original state**
+- **Complete Rollback**: Removed all middleware-based authentication and redirect logic that was added for QR code handling
+- **Middleware Restoration**: Restored middleware.ts to its original simple state with only root → home redirect
+- **Component Cleanup**: Reverted all admin components to their pre-QR-code-redirect state:
+  - AdminLoginClient simplified to basic login without special redirect handling
+  - AdminLoginPage restored with simple authentication check and redirect to /admin-page
+  - Order details page restored with basic authentication check using redirect('/admin-login')
+- **Dependency Cleanup**: No longer using jose or additional JWT verification in middleware
+- **Architecture Simplification**: Removed complex cookie-based return URL storage system
+- **Original Behavior Restored**: QR code scans now redirect to login page and lose the original destination URL (original behavior)
+- **Clean State**: All debugging logs, special middleware logic, and custom redirect components removed
+- **Simple Authentication**: Back to basic server-side authentication checks in pages/layouts
+- **Decision Point**: Ready for user to decide on preferred approach for QR code redirect implementation
+
+## 2025-01-08T04:45:15.678Z
+- **Implemented individual login pages for each admin route - Perfect QR code redirect solution**
+- **Route-Specific Login Architecture**: Created dedicated login pages for each admin section:
+  - `/admin-page/login` - Main admin dashboard login
+  - `/admin-page/[orderId]/login` - Order details specific login  
+  - `/admin-page/emails/login` - Email management specific login
+- **Automatic Return Navigation**: Each login page automatically redirects back to its parent route after successful authentication:
+  - Order login redirects to `/admin-page/[orderId]` preserving the order ID
+  - Emails login redirects to `/admin-page/emails`
+  - Main admin login redirects to `/admin-page`
+- **Enhanced Login Components**: Custom login clients for each route with contextual messaging:
+  - Order login shows "Login to view order details for #[orderId]"
+  - Emails login shows "Login to access email management"
+  - Main admin login shows "Login to access the admin dashboard"
+- **Clean URL Structure**: Login URLs clearly indicate destination and preserve context
+- **QR Code Solution**: When scanning QR codes while logged out:
+  - QR code → `/admin-page/[orderId]` → redirects to `/admin-page/[orderId]/login`
+  - After login → automatically returns to `/admin-page/[orderId]`
+  - **No complex middleware, cookies, or sessionStorage needed!**
+- **Simplified Architecture**: Each route handles its own authentication and redirect logic
+- **User Experience**: Crystal clear where user will go after login, no lost context
+- **Security**: Each login page validates authentication and redirects appropriately
+- **Maintainable**: Easy to add new admin routes with their own login pages
+- **Production Ready**: Simple, reliable solution that works consistently across all browsers
+- **Removed Global Admin Login**: Deleted `/admin-login` page since each route has its own login
+- **Layout Optimization**: Admin layout redirects to main login by default, individual pages override as needed

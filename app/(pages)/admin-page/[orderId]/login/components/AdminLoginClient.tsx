@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -14,9 +15,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { loginAdmin } from "@/app/server/auth";
-import { useState } from "react";
+import Link from "next/link";
 
 // Zod validation schema
 const adminLoginSchema = z.object({
@@ -30,10 +31,11 @@ const adminLoginSchema = z.object({
 type AdminLoginForm = z.infer<typeof adminLoginSchema>;
 
 interface AdminLoginClientProps {
-  returnUrl?: string;
+  redirectTo: string;
+  orderId: string;
 }
 
-export default function AdminLoginClient({ returnUrl }: AdminLoginClientProps) {
+export default function AdminLoginClient({ redirectTo, orderId }: AdminLoginClientProps) {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
@@ -55,12 +57,7 @@ export default function AdminLoginClient({ returnUrl }: AdminLoginClientProps) {
       const result = await loginAdmin(data.email, data.password);
 
       if (result.success) {
-        // Use return URL prop, validate it's an admin route
-        const destination = returnUrl && returnUrl.startsWith('/admin-page') 
-          ? decodeURIComponent(returnUrl) 
-          : '/admin-page';
-        
-        router.push(destination);
+        router.push(redirectTo);
         router.refresh();
       } else {
         setError("root", {
@@ -90,6 +87,9 @@ export default function AdminLoginClient({ returnUrl }: AdminLoginClientProps) {
             />
           </div>
           <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
+          <p className="text-sm text-gray-600">
+            Login to view order details for <span className="font-medium">#{orderId}</span>
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -154,11 +154,21 @@ export default function AdminLoginClient({ returnUrl }: AdminLoginClientProps) {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-gray-500">
+          <div className="mt-6 text-center">
+            <Link 
+              href="/home" 
+              className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back to Home
+            </Link>
+          </div>
+
+          <div className="mt-2 text-center text-sm text-gray-500">
             <p>Authorized personnel only</p>
           </div>
         </CardContent>
       </Card>
     </div>
   );
-}
+} 
