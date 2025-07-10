@@ -262,11 +262,11 @@ export default async function OrderDetailsPage({ params }: PageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center space-x-4">
-                <DeactivateButton orderId={order.orderId} />
+              <div className="space-y-4">
                 <p className="text-sm text-gray-600">
                   Deactivating a ticket marks it as used and prevents re-entry
                 </p>
+                <DeactivateButton orderId={order.orderId} />
               </div>
             </CardContent>
           </Card>
