@@ -654,7 +654,7 @@ export async function getOrderForAdmin(orderId: string): Promise<OrderResponse> 
 }
 
 /**
- * Deactivates a ticket by setting isActive to false
+ * Deactivates a ticket by setting isActive to false and deleting QR code from Cloudinary
  * Used by admin to mark tickets as used/invalid
  * 
  * @param {string} orderId - The custom order ID to deactivate
@@ -691,10 +691,30 @@ export async function deactivateTicket(orderId: string): Promise<{
       };
     }
 
-    // Update the order to deactivate the ticket
+    // Delete QR code from Cloudinary if it exists
+    if (order.qrCodeUrl) {
+      try {
+        // Extract public_id from Cloudinary URL
+        const urlParts = order.qrCodeUrl.split('/');
+        const publicIdWithExt = urlParts[urlParts.length - 1];
+        const publicId = publicIdWithExt.split('.')[0];
+        const fullPublicId = `shutupnrave/qr-codes/${publicId}`;
+
+        await cloudinary.uploader.destroy(fullPublicId);
+        console.log(`QR code deleted from Cloudinary: ${fullPublicId}`);
+      } catch (cloudinaryError) {
+        console.error("Failed to delete QR code from Cloudinary:", cloudinaryError);
+        // Continue with order deactivation even if QR deletion fails
+      }
+    }
+
+    // Update the order to deactivate the ticket and remove QR code URL
     await prisma.order.update({
       where: { orderId },
-      data: { isActive: false }
+      data: { 
+        isActive: false,
+        qrCodeUrl: null // Remove QR code URL since it's been deleted
+      }
     });
 
     return {

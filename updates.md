@@ -1,5 +1,20 @@
 # Development Updates Log
 
+## 2025-01-08T02:45:15.123Z
+- **Enhanced ticket deactivation with automatic QR code cleanup**
+- **Updated `deactivateTicket` function** to delete QR code images from Cloudinary when tickets are deactivated
+- **Added QR code URL extraction logic** to properly parse Cloudinary URLs and extract public IDs
+- **Implemented Cloudinary cleanup**: Uses `cloudinary.uploader.destroy()` to remove QR code images from cloud storage
+- **Database cleanup**: Sets `qrCodeUrl` to `null` in database after successful Cloudinary deletion
+- **Error handling**: Gracefully handles Cloudinary deletion failures and continues with ticket deactivation
+- **Resource optimization**: Prevents accumulation of unused QR code images in Cloudinary storage
+- **Cost management**: Reduces Cloudinary storage costs by removing obsolete QR codes
+- **Enhanced security**: Ensures deactivated QR codes are completely removed from all systems
+- **Consistent behavior**: Both `deactivateTicket` and `verifyAndDeactivateTicket` functions now perform identical cleanup operations
+- **Admin efficiency**: QR codes are automatically deleted when admin deactivates tickets through the dashboard
+- **Logging improvements**: Added console logging for successful QR code deletions for audit trails
+- **Production ready**: QR code deletion works seamlessly with existing Cloudinary configuration
+
 ## 2025-01-08T02:30:45.789Z
 - **Fixed critical Prisma production deployment error (P6001)**
 - **Root Cause**: Prisma Data Proxy was enabled but MongoDB doesn't require Data Proxy protocol
