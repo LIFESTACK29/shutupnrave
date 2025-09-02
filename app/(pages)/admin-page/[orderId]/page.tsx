@@ -13,7 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { getOrderForAdmin } from '@/app/server/checkout';
-import { CopyButton, TicketStatus, DeactivateButton } from './components/OrderDetailsClient';
+import { CopyButton, DeactivateButton } from './components/OrderDetailsClient';
 import TicketDetailsHeader from './components/TicketDetailsHeader';
 
 // Format currency in Naira
@@ -45,7 +45,7 @@ function formatTime(timeString: string): string {
       minute: '2-digit',
       hour12: true,
     });
-  } catch (error) {
+  } catch {
     // If parsing fails, return the original string
     return timeString;
   }

@@ -4,15 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { 
   ArrowLeft, 
   User, 
   Calendar, 
   CreditCard,
-  Home,
-  Copy,
-  RefreshCw
+  Copy
 } from 'lucide-react';
 import { TicketStatus } from './OrderDetailsClient';
 
@@ -57,9 +54,7 @@ export default function TicketDetailsHeader({ order }: TicketDetailsHeaderProps)
     }
   };
 
-  const handleRefresh = () => {
-    window.location.reload();
-  };
+
 
   return (
     <div className="sticky top-0 z-50 bg-white shadow-lg border-b-2 border-gray-100">
