@@ -1,11 +1,20 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, User, Mail, Phone, Calendar, MapPin, CreditCard, Package, AlertCircle } from 'lucide-react';
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  MapPin, 
+  CreditCard, 
+  Package, 
+  AlertCircle
+} from 'lucide-react';
 import { getOrderForAdmin } from '@/app/server/checkout';
 import { CopyButton, TicketStatus, DeactivateButton } from './components/OrderDetailsClient';
+import TicketDetailsHeader from './components/TicketDetailsHeader';
 
 // Format currency in Naira
 function formatCurrency(amount: number): string {
@@ -22,13 +31,24 @@ function formatDate(date: string | Date): string {
   });
 }
 
-// Format time to readable string
+// Format time to readable string - handles both single times and time ranges
 function formatTime(timeString: string): string {
-  return new Date(`2000-01-01 ${timeString}`).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  // If it's already a formatted time range (like "12:00 PM - 10:00 PM"), return as-is
+  if (timeString.includes(' - ') || timeString.includes('PM') || timeString.includes('AM')) {
+    return timeString;
+  }
+  
+  // Otherwise, try to parse and format it
+  try {
+    return new Date(`2000-01-01 ${timeString}`).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch (error) {
+    // If parsing fails, return the original string
+    return timeString;
+  }
 }
 
 // Updated for Next.js 15 - params is now async
@@ -51,52 +71,47 @@ export default async function OrderDetailsPage({ params }: PageProps) {
   
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center space-x-4">
-            <Link 
-              href="/admin-page" 
-              className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Admin
-            </Link>
-            <Separator orientation="vertical" className="h-6" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
-              <p className="text-sm text-gray-600">Order ID: {order.orderId}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Enhanced Header */}
+      <TicketDetailsHeader order={order} />
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Order Status */}
+      <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
+        {/* Order Summary */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Order Status</span>
-              <div className="flex items-center space-x-2">
-                <Badge variant={order.paymentStatus === 'PAID' ? 'default' : 'destructive'}>
-                  {order.paymentStatus}
-                </Badge>
-                <Badge variant={order.status === 'CONFIRMED' ? 'default' : 'secondary'}>
-                  {order.status}
-                </Badge>
-                <TicketStatus isActive={order.isActive} />
-              </div>
+            <CardTitle className="flex items-center space-x-2">
+              <Package className="h-5 w-5" />
+              <span>Order Summary</span>
             </CardTitle>
             <CardDescription>
-              Created on {formatDate(order.createdAt)} at{' '}
-              {new Date(order.createdAt).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true,
-              })}
+              Complete order information and current status
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">Order Created</p>
+                <p className="font-medium">
+                  {formatDate(order.createdAt)} at{' '}
+                  {new Date(order.createdAt).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">Total Amount</p>
+                <p className="font-medium text-lg">{formatCurrency(order.total)}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">Ticket Count</p>
+                <p className="font-medium">
+                  {order.orderItems.reduce((sum, item) => sum + item.quantity, 0)} tickets
+                </p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Customer Information */}

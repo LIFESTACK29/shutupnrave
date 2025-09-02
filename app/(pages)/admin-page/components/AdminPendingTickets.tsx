@@ -180,61 +180,117 @@ export default function AdminPendingTickets({
     return (
       <div 
         key={order.id}
-        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+        className="p-3 md:p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
       >
-        <div className="flex items-center space-x-4 flex-1">
-          {/* Status Icon */}
-          <StatusIcon className="h-5 w-5 text-orange-600" />
-          
-          {/* Order Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-3 mb-1">
+        {/* Mobile Layout: Stack vertically */}
+        <div className="md:hidden space-y-3">
+          {/* Header Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <StatusIcon className="h-4 w-4 text-orange-600" />
               <p className="font-semibold text-gray-900 text-sm">
                 {order.orderId}
               </p>
-              <Badge variant={getStatusBadgeVariant(order)} className="text-xs">
-                {getStatusText(order)}
-              </Badge>
             </div>
-            
-            <div className="flex items-center space-x-4 text-xs text-gray-600">
-              <span className="flex items-center space-x-1">
-                <User className="h-3 w-3" />
-                <span>{order.user.fullName}</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <Mail className="h-3 w-3" />
-                <span>{order.user.email}</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <Calendar className="h-3 w-3" />
-                <span>{formatDate(order.createdAt)}</span>
-              </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleViewOrder(order.orderId)}
+              className="text-xs px-2 py-1"
+            >
+              <Eye className="h-3 w-3 mr-1" />
+              View
+            </Button>
+          </div>
+          
+          {/* Status & Ticket Info */}
+          <div className="flex items-center justify-between">
+            <Badge variant={getStatusBadgeVariant(order)} className="text-xs">
+              {getStatusText(order)}
+            </Badge>
+            <div className="text-right">
+              <p className="text-sm font-medium text-gray-900">
+                {totalTickets} ticket{totalTickets !== 1 ? 's' : ''}
+              </p>
+              <p className="text-xs text-gray-600">
+                {formatCurrency(order.total)}
+              </p>
             </div>
           </div>
           
-          {/* Ticket Info */}
-          <div className="text-right">
-            <p className="text-sm font-medium text-gray-900">
-              {totalTickets} ticket{totalTickets !== 1 ? 's' : ''}
-            </p>
-            <p className="text-xs text-gray-600">
-              {formatCurrency(order.total)}
-            </p>
+          {/* User Info */}
+          <div className="space-y-1">
+            <div className="flex items-center space-x-1 text-xs text-gray-600">
+              <User className="h-3 w-3" />
+              <span className="truncate">{order.user.fullName}</span>
+            </div>
+            <div className="flex items-center space-x-1 text-xs text-gray-600">
+              <Mail className="h-3 w-3" />
+              <span className="truncate">{order.user.email}</span>
+            </div>
+            <div className="flex items-center space-x-1 text-xs text-gray-600">
+              <Calendar className="h-3 w-3" />
+              <span>{formatDate(order.createdAt)}</span>
+            </div>
           </div>
         </div>
-        
-        {/* Action Button */}
-        <div className="ml-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleViewOrder(order.orderId)}
-            className="text-xs"
-          >
-            <Eye className="h-3 w-3 mr-1" />
-            View
-          </Button>
+
+        {/* Desktop Layout: Horizontal */}
+        <div className="hidden md:flex items-center justify-between">
+          <div className="flex items-center space-x-4 flex-1">
+            {/* Status Icon */}
+            <StatusIcon className="h-5 w-5 text-orange-600" />
+            
+            {/* Order Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-3 mb-1">
+                <p className="font-semibold text-gray-900 text-sm">
+                  {order.orderId}
+                </p>
+                <Badge variant={getStatusBadgeVariant(order)} className="text-xs">
+                  {getStatusText(order)}
+                </Badge>
+              </div>
+              
+              <div className="flex items-center space-x-4 text-xs text-gray-600">
+                <span className="flex items-center space-x-1">
+                  <User className="h-3 w-3" />
+                  <span>{order.user.fullName}</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <Mail className="h-3 w-3" />
+                  <span>{order.user.email}</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>{formatDate(order.createdAt)}</span>
+                </span>
+              </div>
+            </div>
+            
+            {/* Ticket Info */}
+            <div className="text-right">
+              <p className="text-sm font-medium text-gray-900">
+                {totalTickets} ticket{totalTickets !== 1 ? 's' : ''}
+              </p>
+              <p className="text-xs text-gray-600">
+                {formatCurrency(order.total)}
+              </p>
+            </div>
+          </div>
+          
+          {/* Action Button */}
+          <div className="ml-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleViewOrder(order.orderId)}
+              className="text-xs"
+            >
+              <Eye className="h-3 w-3 mr-1" />
+              View
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -244,11 +300,11 @@ export default function AdminPendingTickets({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <div className="flex items-center space-x-2">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
-            <CardTitle>Pending Tickets</CardTitle>
+            <CardTitle className="text-lg">Pending Tickets</CardTitle>
           </div>
           <div className="flex items-center space-x-2">
             {onRefresh && (
@@ -260,7 +316,7 @@ export default function AdminPendingTickets({
                 className="text-xs"
               >
                 <RefreshCw className={`h-3 w-3 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                <span className="hidden sm:inline">Refresh</span>
               </Button>
             )}
             <Button
@@ -274,7 +330,7 @@ export default function AdminPendingTickets({
           </div>
         </div>
         
-        <CardDescription>
+        <CardDescription className="text-sm">
           Orders that are not successfully paid and confirmed. These tickets are excluded from successful sales totals.
         </CardDescription>
       </CardHeader>
@@ -283,41 +339,41 @@ export default function AdminPendingTickets({
 
       <CardContent className="p-0">
         {/* Statistics Summary */}
-        <div className="p-4 bg-orange-50 border-b">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="p-3 md:p-4 bg-orange-50 border-b">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
             <div className="text-center">
-              <p className="text-lg font-bold text-orange-700">{pendingStats.totalPending}</p>
-              <p className="text-xs text-orange-600">Total Pending</p>
+              <p className="text-lg md:text-xl font-bold text-orange-700">{pendingStats.totalPending}</p>
+              <p className="text-xs md:text-sm text-orange-600">Total Pending</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-blue-700">{pendingStats.pendingOrders}</p>
-              <p className="text-xs text-blue-600">Payment Pending</p>
+              <p className="text-lg md:text-xl font-bold text-blue-700">{pendingStats.pendingOrders}</p>
+              <p className="text-xs md:text-sm text-blue-600">Payment Pending</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-red-700">{pendingStats.failedPayments}</p>
-              <p className="text-xs text-red-600">Payment Failed</p>
+              <p className="text-lg md:text-xl font-bold text-red-700">{pendingStats.failedPayments}</p>
+              <p className="text-xs md:text-sm text-red-600">Failed</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-gray-700">{pendingStats.cancelledOrders}</p>
-              <p className="text-xs text-gray-600">Cancelled</p>
+              <p className="text-lg md:text-xl font-bold text-gray-700">{pendingStats.cancelledOrders}</p>
+              <p className="text-xs md:text-sm text-gray-600">Cancelled</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-purple-700">{pendingStats.refundedOrders}</p>
-              <p className="text-xs text-purple-600">Refunded</p>
+              <p className="text-lg md:text-xl font-bold text-purple-700">{pendingStats.refundedOrders}</p>
+              <p className="text-xs md:text-sm text-purple-600">Refunded</p>
             </div>
           </div>
         </div>
 
         {/* Pending Tickets List */}
         {pendingTickets.length === 0 ? (
-          <div className="p-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Tickets</h3>
-            <p className="text-gray-600">All tickets have been successfully processed!</p>
+          <div className="p-6 md:p-8 text-center">
+            <AlertTriangle className="h-10 w-10 md:h-12 md:w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">No Pending Tickets</h3>
+            <p className="text-sm md:text-base text-gray-600">All tickets have been successfully processed!</p>
           </div>
         ) : (
-          <div className="p-4">
-            <div className="space-y-3">
+          <div className="p-3 md:p-4">
+            <div className="space-y-2 md:space-y-3">
               {/* Show limited or all tickets based on expanded view */}
               {(expandedView ? pendingTickets : pendingTickets.slice(0, 5)).map(renderPendingTicket)}
               
@@ -328,7 +384,7 @@ export default function AdminPendingTickets({
                     variant="ghost"
                     size="sm"
                     onClick={handleToggleView}
-                    className="text-xs text-gray-600"
+                    className="text-xs text-gray-600 w-full sm:w-auto"
                   >
                     +{pendingTickets.length - 5} more pending tickets
                   </Button>

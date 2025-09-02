@@ -199,7 +199,7 @@ export const OrderConfirmationEmail = ({
                 <li style={nextStepsItem}>
                   Show your QR code at the entrance for quick entry
                 </li>
-                <li style={nextStepsItem}>Arrive 30 minutes early for entry</li>
+                <li style={nextStepsItem}>Arrive early for entry</li>
                 <li style={nextStepsItem}>
                   <strong>Join our WhatsApp channel</strong> for exclusive updates, lineup announcements, and behind-the-scenes content!
                   <br />

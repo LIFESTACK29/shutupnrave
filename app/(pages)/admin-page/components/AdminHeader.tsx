@@ -19,7 +19,6 @@
 
 import React, { useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,14 +26,6 @@ import { LogOut, Database, Mail, Music, Heart } from 'lucide-react';
 import { logoutAdmin } from '@/app/server/auth';
 
 // ===== CONSTANTS =====
-
-/** Logo configuration */
-const LOGO_CONFIG = {
-  src: "/shutupnrave-wb.png",
-  alt: "Shut Up N Rave Logo",
-  width: { mobile: 150, desktop: 100 },
-  height: { mobile: 150, desktop: 100 }
-} as const;
 
 /** Navigation route configuration */
 const ADMIN_ROUTES = {
@@ -134,28 +125,27 @@ export default function AdminHeader() {
 
   return (
     <div className="bg-white shadow-sm border-b">
-      <div className="max-w-6xl mx-auto px-4 py-4 md:py-6">
-        <div className="flex flex-col space-y-4 md:space-y-6">
+      <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+        <div className="flex flex-col space-y-6 md:space-y-8">
           
-          {/* Main Header Row: Logo/Branding and Logout Button */}
-          <div className="flex items-center justify-between">
+          {/* Main Header Row: Logo/Branding and Logout Button - Restructured */}
+          <div className="flex items-center justify-between min-h-[80px]">
             
-            {/* Logo and Branding Section */}
-            <Link 
-              href={ADMIN_ROUTES.main} 
-              className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
-              aria-label="Navigate to admin dashboard home"
-            >
-              <div className="w-10 h-10 md:w-12 md:h-12 relative">
-                <Image
-                  src={LOGO_CONFIG.src}
-                  alt={LOGO_CONFIG.alt}
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-            </Link>
+            {/* Logo and Branding Section - Dedicated space */}
+            <div className="flex items-center space-x-4 flex-shrink-0">
+              <Link 
+                href={ADMIN_ROUTES.main} 
+                className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity"
+                aria-label="Navigate to admin dashboard home"
+              >
+             
+             <img 
+                src="/shutupnrave-wb.png" 
+                alt="Shut Up N Rave Logo"
+                className="w-25 h-8 md:w-40 md:h-12 object-contain"
+              />
+              </Link>
+            </div>
             
             {/* Authentication Controls */}
             <Button
