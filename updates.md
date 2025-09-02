@@ -557,6 +557,43 @@
 - **Simple Authentication**: Back to basic server-side authentication checks in pages/layouts
 - **Decision Point**: Ready for user to decide on preferred approach for QR code redirect implementation
 
+## 2025-01-08T19:25:45.123Z
+- **Fixed QR code generation for HTTPS deployment environments**
+- **HTTPS URL Enforcement**: Enhanced QR code generation to ensure HTTPS URLs in production
+  - **Automatic HTTPS conversion**: HTTP URLs automatically converted to HTTPS in production
+  - **Vercel URL support**: Proper handling of Vercel deployment URLs with HTTPS
+  - **Environment detection**: Checks `NODE_ENV` and `VERCEL_URL` for deployment context
+  - **Fallback protection**: Maintains HTTP support for local development
+- **Enhanced Error Handling & Debugging**:
+  - **QR code logging**: Added detailed logging for QR code URL generation
+  - **Cloudinary diagnostics**: Environment variable validation logging
+  - **Upload success tracking**: Logs successful Cloudinary uploads with URLs
+  - **Configuration validation**: Checks for missing Cloudinary credentials
+- **Production Reliability**:
+  - **HTTPS QR codes**: All QR codes in emails will use secure HTTPS URLs
+  - **Email client compatibility**: Cloudinary-hosted images work across all email clients
+  - **Deployment flexibility**: Works with Vercel, custom domains, and other hosting platforms
+  - **Debug visibility**: Clear logging helps identify and resolve any remaining issues
+
+## 2025-01-08T19:10:22.890Z
+- **Enhanced ticket confirmation emails with WhatsApp channel integration**
+- **WhatsApp Channel Integration**: Added official Shutupnraveee HQ WhatsApp channel link to ticket emails
+  - **Channel URL**: [https://whatsapp.com/channel/0029VbB4q2eEFeXq2H1ZCt12](https://whatsapp.com/channel/0029VbB4q2eEFeXq2H1ZCt12)
+  - **Styled WhatsApp button**: Green (#25D366) branded button with emoji and clear call-to-action
+  - **Multiple touch points**: Added to both "What's Next" section and social links footer
+  - **Enhanced messaging**: Updated footer text to promote WhatsApp channel for exclusive content
+  - **User engagement**: Positioned as source for lineup announcements and behind-the-scenes content
+- **Email Template Improvements**:
+  - **Prominent placement**: WhatsApp channel mentioned in step-by-step instructions
+  - **Visual distinction**: WhatsApp button styled differently from other social buttons
+  - **Clear value proposition**: Emphasized exclusive updates and event announcements
+  - **Professional integration**: Seamlessly integrated with existing email design
+- **Volunteer CSV Export Functionality**: Already implemented and fully functional
+  - **Export button**: Available in admin volunteer applications page
+  - **Filtered exports**: Supports status and role-based filtering
+  - **Clean CSV format**: Exports Name, Phone, Gender, and Role in organized columns
+  - **Filename convention**: Auto-generated with date stamps for organization
+
 ## 2025-01-08T18:45:30.567Z
 - **Fixed all remaining TypeScript/ESLint compilation errors - Build now successful ✅**
 - **Resolved Prisma enum type compatibility issues**:

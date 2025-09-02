@@ -117,8 +117,7 @@ export default function DJApplicationPage() {
               </h1>
               <p className="text-white/70 text-lg mb-8">
                 Thanks for applying! We&apos;ve received your DJ application and
-                will review it shortly. You&apos;ll hear back from us within 48
-                hours.
+                will review it shortly.
               </p>
               <div className="space-y-4">
                 <p className="text-white/60 text-sm">
@@ -145,7 +144,7 @@ export default function DJApplicationPage() {
       {/* Header Section */}
       <section className="pt-12 md:pt-24 pb-8 px-4 border-b border-white/10 relative">
         {/* Floating decorative elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden hidden">
           <div className="absolute top-20 left-10 text-yellow-400 text-2xl opacity-10 animate-pulse">
             🎧
           </div>
@@ -315,10 +314,9 @@ export default function DJApplicationPage() {
                     )}
                   </Button>
 
-                  <p className="text-white/50 text-xs text-center">
-                    We&apos;ll review your application and get back to you
-                    within 48 hours via Instagram or phone.
-                  </p>
+                  {/* <p className="text-white/50 text-xs text-center">
+                    We&apos;ll review your application and get back to you.
+                  </p> */}
                 </div>
               </form>
             </CardContent>

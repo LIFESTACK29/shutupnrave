@@ -201,6 +201,16 @@ export const OrderConfirmationEmail = ({
                 </li>
                 <li style={nextStepsItem}>Arrive 30 minutes early for entry</li>
                 <li style={nextStepsItem}>
+                  <strong>Join our WhatsApp channel</strong> for exclusive updates, lineup announcements, and behind-the-scenes content!
+                  <br />
+                  <Button
+                    style={whatsappInlineButton}
+                    href="https://whatsapp.com/channel/0029VbB4q2eEFeXq2H1ZCt12"
+                  >
+                    📱 Join WhatsApp Channel
+                  </Button>
+                </li>
+                <li style={nextStepsItem}>
                   Get ready for an unforgettable night!
                 </li>
               </ul>
@@ -213,8 +223,8 @@ export const OrderConfirmationEmail = ({
               Can't wait to see you there! 🎵
             </Heading>
             <Text style={footerText}>
-              Follow us on social media for updates and behind-the-scenes
-              content
+              Follow us on social media and join our WhatsApp channel for exclusive updates, 
+              lineup announcements, and behind-the-scenes content
             </Text>
             <Section style={socialLinks}>
               <Button
@@ -229,6 +239,12 @@ export const OrderConfirmationEmail = ({
               <Button style={socialButton} href="#">
                 TikTok
               </Button>
+              {/* <Button
+                style={whatsappButton}
+                href="https://whatsapp.com/channel/0029VbB4q2eEFeXq2H1ZCt12"
+              >
+                📱 WhatsApp Channel
+              </Button> */}
             </Section>
           </Section>
 
@@ -496,6 +512,33 @@ const socialButton = {
   textDecoration: "none",
   margin: "0 10px",
   fontSize: "14px",
+};
+
+const whatsappButton = {
+  backgroundColor: "#25D366",
+  color: "#ffffff",
+  textDecoration: "none",
+  margin: "10px 5px",
+  padding: "8px 16px",
+  borderRadius: "6px",
+  fontSize: "14px",
+  fontWeight: "bold",
+  border: "none",
+  display: "inline-block",
+};
+
+const whatsappInlineButton = {
+  backgroundColor: "#25D366",
+  color: "#ffffff",
+  textDecoration: "none",
+  margin: "8px 0 5px 0",
+  padding: "10px 20px",
+  borderRadius: "8px",
+  fontSize: "14px",
+  fontWeight: "bold",
+  border: "none",
+  display: "inline-block",
+  textAlign: "center" as const,
 };
 
 const contact = {
