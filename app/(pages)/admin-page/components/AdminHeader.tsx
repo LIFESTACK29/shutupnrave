@@ -18,11 +18,12 @@
 "use client";
 
 import React, { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LogOut, Database, Mail, Music, Heart } from 'lucide-react';
 import { logoutAdmin } from '@/app/server/auth';
 
 // ===== CONSTANTS =====
@@ -39,6 +40,8 @@ const LOGO_CONFIG = {
 const ADMIN_ROUTES = {
   main: '/admin-page',
   emails: '/admin-page/emails',
+  djApplications: '/admin-page/dj-applications',
+  volunteerApplications: '/admin-page/volunteer-applications',
   login: '/admin-login'
 } as const;
 
@@ -69,6 +72,39 @@ export default function AdminHeader() {
   // ===== HOOKS =====
   
   const router = useRouter();
+  const pathname = usePathname();
+
+  // ===== NAVIGATION HELPERS =====
+
+  /**
+   * Get current active tab based on pathname
+   */
+  const getCurrentTab = (): string => {
+    if (pathname === ADMIN_ROUTES.emails) return 'emails';
+    if (pathname === ADMIN_ROUTES.djApplications) return 'dj-applications';
+    if (pathname === ADMIN_ROUTES.volunteerApplications) return 'volunteer-applications';
+    return 'dashboard';
+  };
+
+  /**
+   * Handle tab navigation
+   */
+  const handleTabChange = (value: string) => {
+    switch (value) {
+      case 'dashboard':
+        router.push(ADMIN_ROUTES.main);
+        break;
+      case 'emails':
+        router.push(ADMIN_ROUTES.emails);
+        break;
+      case 'dj-applications':
+        router.push(ADMIN_ROUTES.djApplications);
+        break;
+      case 'volunteer-applications':
+        router.push(ADMIN_ROUTES.volunteerApplications);
+        break;
+    }
+  };
 
   // ===== EVENT HANDLERS =====
 
@@ -137,6 +173,50 @@ export default function AdminHeader() {
               </span>
             </Button>
             
+          </div>
+          
+          {/* Navigation Tabs */}
+          <div className="w-full">
+            <Tabs 
+              value={getCurrentTab()} 
+              onValueChange={handleTabChange} 
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-4 bg-gray-100">
+                <TabsTrigger 
+                  value="dashboard" 
+                  className="flex items-center gap-2 cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black"
+                >
+                  <Database className="h-4 w-4" />
+                  <span className="hidden sm:inline">Orders & Tickets</span>
+                  <span className="sm:hidden">Orders</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="emails" 
+                  className="flex items-center gap-2 cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span className="hidden sm:inline">Email Management</span>
+                  <span className="sm:hidden">Emails</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="dj-applications" 
+                  className="flex items-center gap-2 cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black"
+                >
+                  <Music className="h-4 w-4" />
+                  <span className="hidden sm:inline">DJ Applications</span>
+                  <span className="sm:hidden">DJs</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="volunteer-applications" 
+                  className="flex items-center gap-2 cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black"
+                >
+                  <Heart className="h-4 w-4" />
+                  <span className="hidden sm:inline">Volunteers</span>
+                  <span className="sm:hidden">Vol</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
           
         </div>

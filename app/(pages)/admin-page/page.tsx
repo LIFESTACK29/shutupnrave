@@ -36,6 +36,7 @@ import { useRouter } from 'next/navigation';
 // Local component imports
 import AdminOrderSearch from './components/AdminOrderSearch';
 import AdminOrdersTable from './components/AdminOrdersTable';
+import AdminPendingTickets from './components/AdminPendingTickets';
 import AdminHeader from './components/AdminHeader';
 import { getOrdersWithFilters } from './actions';
 import { Order } from '@/types';
@@ -130,7 +131,8 @@ export default function AdminPage() {
   // ===== COMPUTED VALUES =====
 
   /**
-   * Calculate comprehensive dashboard statistics from all orders
+   * Calculate comprehensive dashboard statistics from successful orders only
+   * Only includes orders where paymentStatus is "PAID" and status is "CONFIRMED"
    * Memoized for performance optimization
    */
   const statistics = useMemo<DashboardStatistics>(() => {
@@ -149,10 +151,15 @@ export default function AdminPage() {
       };
     }
 
+    // Filter to only include successfully paid and confirmed orders
+    const successfulOrders = allOrders.filter(order => 
+      order.paymentStatus === 'PAID' && order.status === 'CONFIRMED'
+    );
+
     const stats: DashboardStatistics = {
-      totalOrders: allOrders.length,
-      activeTickets: allOrders.filter(order => order.isActive).length,
-      usedTickets: allOrders.filter(order => !order.isActive).length,
+      totalOrders: successfulOrders.length,
+      activeTickets: successfulOrders.filter(order => order.isActive).length,
+      usedTickets: successfulOrders.filter(order => !order.isActive).length,
       soloVibesCount: 0,
       gengEnergyCount: 0,
       soloVibesRevenue: 0,
@@ -162,8 +169,8 @@ export default function AdminPage() {
       totalSubtotal: 0
     };
 
-    // Calculate detailed ticket and revenue statistics
-    allOrders.forEach(order => {
+    // Calculate detailed ticket and revenue statistics from successful orders only
+    successfulOrders.forEach(order => {
       stats.totalProcessingFees += order.processingFee;
       stats.totalSubtotal += order.subtotal;
       
@@ -370,13 +377,13 @@ export default function AdminPage() {
           </p>
         </div>
 
-        {/* Statistics Dashboard - Always shows data from ALL orders */}
+        {/* Statistics Dashboard - Shows data from SUCCESSFUL orders only (PAID & CONFIRMED) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           
           {/* Core Statistics */}
           <StatCard
             icon={Database}
-            title="Total Orders"
+            title="Successful Orders"
             value={statistics.totalOrders}
             colorClass="text-blue-600"
           />
@@ -443,6 +450,13 @@ export default function AdminPage() {
           />
 
         </div>
+
+        {/* Pending Tickets Section */}
+        <AdminPendingTickets
+          orders={allOrders}
+          isLoading={isLoading}
+          onRefresh={loadAllOrders}
+        />
 
         {/* Search and Filter Controls */}
         <AdminOrderSearch

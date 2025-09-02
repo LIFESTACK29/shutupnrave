@@ -143,3 +143,73 @@ enum PaymentStatus {
   FAILED
   REFUNDED
 }
+
+// DJ Application Model
+model DjApplication {
+  id               String              @id @default(auto()) @map("_id") @db.ObjectId
+  fullName         String
+  phoneNumber      String
+  instagramHandle  String              @unique
+  mixLink          String
+  status           DJApplicationStatus @default(PENDING)
+  submittedAt      DateTime            @default(now())
+  reviewedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@map("dj_applications")
+}
+
+// Enum for DJ application status
+enum DJApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Volunteer Application Model
+model VolunteerApplication {
+  id          String                     @id @default(auto()) @map("_id") @db.ObjectId
+  fullName    String
+  phoneNumber String
+  gender      Gender
+  role        VolunteerRole
+  status      VolunteerApplicationStatus @default(PENDING)
+  submittedAt DateTime                   @default(now())
+  reviewedAt  DateTime?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+
+  @@map("volunteer_applications")
+}
+
+// Enum for gender
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+// Enum for volunteer roles
+enum VolunteerRole {
+  LOGISTICS_SETUP
+  ASSISTANCE
+  SOCIAL_MEDIA_SUPPORT
+  TECH_SUPPORT_STAGE_MANAGEMENT
+  CONTENT_CREATION
+  GUEST_REGISTRATION_TICKETING
+  CROWD_CONTROL
+  SALES_MARKETING
+  OFFLINE_PUBLICITY
+  MEDICALS
+  GAMES
+  PR_TEAM
+}
+
+// Enum for volunteer application status
+enum VolunteerApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
