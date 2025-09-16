@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 // import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -180,19 +180,21 @@ export default function TicketsPage() {
                             )}
 
                             {/* Checkout Sheet */}
-                            <CheckoutSheet
-                                isOpen={isCheckoutOpen}
-                                onOpenChange={setIsCheckoutOpen}
-                                disabled={ticketQuantity === 0}
-                                ticketInfo={{
-                                    name: currentTicket.name,
-                                    quantity: ticketQuantity,
-                                    subtotal,
-                                    processingFee,
-                                    total,
-                                }}
-                                formatPrice={formatPrice}
-                            />
+                            <Suspense fallback={<div className="text-center text-white/70">Loading checkout…</div>}>
+                                <CheckoutSheet
+                                    isOpen={isCheckoutOpen}
+                                    onOpenChange={setIsCheckoutOpen}
+                                    disabled={ticketQuantity === 0}
+                                    ticketInfo={{
+                                        name: currentTicket.name,
+                                        quantity: ticketQuantity,
+                                        subtotal,
+                                        processingFee,
+                                        total,
+                                    }}
+                                    formatPrice={formatPrice}
+                                />
+                            </Suspense>
                         </CardContent>
                     </Card>
                 </div>

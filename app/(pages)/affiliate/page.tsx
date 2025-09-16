@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { verifyAffiliateToken, logoutAffiliate } from '@/app/server/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
