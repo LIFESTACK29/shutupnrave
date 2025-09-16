@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     canonical: "https://shutupnrave.com.ng",
   },
   verification: {
-    google: "your-google-site-verification", // Replace with actual verification code
+    google: "0RedIG2udrstn2g8sTXtJDc3cZuS2__-8lUZ6x65EXU", // Replace with actual verification code https://search.google.com/search-console/welcome
     yandex: "your-yandex-verification", // Replace with actual verification code
     yahoo: "your-yahoo-verification", // Replace with actual verification code
   },
