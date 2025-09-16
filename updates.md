@@ -54,6 +54,13 @@
   - Added ticket-type breakdown per affiliate in admin list and retained detailed breakdown in affiliate details page
   - Ensured success toasts on copy actions and modal actions
 
+## 2025-09-16T12:30:00.000Z
+- Affiliate portal refinements
+  - Referral link card now uses copy-only action with success toast; removed "Open" button
+  - Referral link always uses full public URL from `NEXT_PUBLIC_APP_URL`
+- Developer experience
+  - Fixed unused state warnings in `AdminAffiliatesClient.tsx` (setter-only state for pagination metadata)
+
 ## 2025-09-16T00:00:00.000Z
 - Added Affiliates section to admin dashboard
 - Navigation: Added "Affiliates" tab to `AdminHeader` with route `/admin-page/affiliates`
