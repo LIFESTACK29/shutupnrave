@@ -45,6 +45,7 @@ model User {
 
   // Relationships
   orders Order[]
+  affiliates Affiliate[]
 
   @@map("users")
 }
@@ -61,6 +62,8 @@ model TicketType {
 
   // Relationships
   orderItems OrderItem[]
+  affiliateCommissionRules AffiliateCommissionRule[]
+  affiliateCommissions     AffiliateCommission[]
 
   @@map("ticket_types")
 }
@@ -99,6 +102,10 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Affiliate attribution
+  affiliateId String? @db.ObjectId
+  affiliate   Affiliate? @relation(fields: [affiliateId], references: [id])
+
   // Relationships
   orderItems OrderItem[]
 
@@ -126,7 +133,88 @@ model OrderItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relationships
+  affiliateCommissions AffiliateCommission[]
+
   @@map("order_items")
+}
+
+// Affiliate Partner Model (ties a ref code to a specific user)
+model Affiliate {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Link to the user who owns this affiliate profile
+  userId    String   @db.ObjectId @unique
+  user      User     @relation(fields: [userId], references: [id])
+
+  // Public referral identifier used in URLs, e.g. ?ref=ABCD123
+  refCode   String   @unique
+
+  // Authentication for sub-admin portal
+  passwordHash String?
+
+  // Partner status
+  status    AffiliateStatus @default(ACTIVE)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  commissionRules AffiliateCommissionRule[]
+  orders          Order[]
+  affiliateCommissions AffiliateCommission[]
+
+  @@map("affiliates")
+}
+
+// Commission rule per ticket type (percentage or fixed amount per ticket)
+model AffiliateCommissionRule {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  affiliateId   String   @db.ObjectId
+  affiliate     Affiliate @relation(fields: [affiliateId], references: [id])
+
+  ticketTypeId  String     @db.ObjectId
+  ticketType    TicketType @relation(fields: [ticketTypeId], references: [id])
+
+  commissionType CommissionType @default(PERCENTAGE)
+  rate           Float?  // e.g., 0.10 for 10% when commissionType = PERCENTAGE
+  amount         Int?    // fixed amount in kobo when commissionType = FIXED_AMOUNT
+
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // One active rule per affiliate per ticket type
+  @@unique([affiliateId, ticketTypeId])
+
+  @@map("affiliate_commission_rules")
+}
+
+// Calculated commission earned per order item (per sale, by ticket type)
+model AffiliateCommission {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Relationships to derive context
+  affiliateId     String   @db.ObjectId
+  affiliate       Affiliate @relation(fields: [affiliateId], references: [id])
+
+  orderItemId     String   @db.ObjectId
+  orderItem       OrderItem @relation(fields: [orderItemId], references: [id])
+
+  ticketTypeId    String     @db.ObjectId
+  ticketType      TicketType @relation(fields: [ticketTypeId], references: [id])
+
+  // Commission details persisted at time of sale
+  commissionType  CommissionType @default(PERCENTAGE)
+  commissionRate  Float?  // snapshot of percentage used, if applicable
+  commissionAmount Int    // final commission in kobo for this order item
+
+  createdAt       DateTime @default(now())
+
+  @@map("affiliate_commissions")
 }
 
 // Enums for order status
@@ -142,6 +230,19 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+// Affiliate partner lifecycle status
+enum AffiliateStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// Commission calculation type
+enum CommissionType {
+  PERCENTAGE
+  FIXED_AMOUNT
 }
 
 // DJ Application Model

@@ -15,6 +15,9 @@ import { deactivateTicket } from '@/app/server/checkout';
 import { prisma } from '@/lib/db';
 import { Order } from '@/types';
 import type { Prisma } from '@prisma/client';
+import { Resend } from 'resend';
+import { render } from '@react-email/render';
+import AffiliateWelcomeEmail from '@/emails/affiliate-welcome';
 
 // ===== TYPE DEFINITIONS =====
 
@@ -363,6 +366,370 @@ export async function getNewsletterSubscribers(): Promise<{success: boolean, sub
       error: 'Failed to fetch newsletter subscribers',
       subscribers: []
     };
+  }
+}
+
+// ===== AFFILIATE MANAGEMENT ACTIONS =====
+
+export interface AffiliateListItem {
+  id: string;
+  refCode: string;
+  createdAt: Date;
+  user: {
+    id: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+  };
+  stats: {
+    successfulOrders: number;
+    ticketsSold: number;
+    subtotalRevenue: number; // in kobo
+    totalCommission: number; // in kobo
+    byTicketType?: Record<string, number>;
+  };
+}
+
+export interface AffiliateListResult {
+  success: boolean;
+  affiliates?: AffiliateListItem[];
+  pagination?: PaginationParams;
+  error?: string;
+}
+
+export async function getAffiliates(
+  searchQuery: string = '',
+  page: number = 1,
+  limit: number = 20
+): Promise<AffiliateListResult> {
+  try {
+    const validPage = Math.max(1, Math.floor(page));
+    const validLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+
+    const where: Prisma.AffiliateWhereInput = {};
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim();
+      where.OR = [
+        { refCode: { contains: q, mode: 'insensitive' } },
+        { user: { fullName: { contains: q, mode: 'insensitive' } } },
+        { user: { email: { contains: q, mode: 'insensitive' } } },
+        { user: { phoneNumber: { contains: q } } }
+      ];
+    }
+
+    const skip = (validPage - 1) * validLimit;
+
+    const [totalCount, affiliates] = await Promise.all([
+      prisma.affiliate.count({ where }),
+      prisma.affiliate.findMany({
+        where,
+        include: { user: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: validLimit
+      })
+    ]);
+
+    // Compute stats per affiliate (paid & confirmed orders only)
+    const affiliatesWithStats: AffiliateListItem[] = [];
+
+    for (const a of affiliates) {
+      const successfulOrders = await prisma.order.findMany({
+        where: {
+          affiliateId: a.id,
+          paymentStatus: 'PAID',
+          status: 'CONFIRMED'
+        },
+        include: {
+          orderItems: true
+        }
+      });
+
+      const ticketsSold = successfulOrders.reduce((sum, o) => sum + o.orderItems.reduce((s, i) => s + i.quantity, 0), 0);
+      const subtotalRevenue = successfulOrders.reduce((sum, o) => sum + o.subtotal, 0);
+
+      // Build counts by ticket type name
+      const byTicketType = successfulOrders.reduce((acc, o) => {
+        o.orderItems.forEach(item => {
+          const key = String(item.ticketTypeId); // temporary by id first
+          acc[key] = (acc[key] || 0) + item.quantity;
+        });
+        return acc;
+      }, {} as Record<string, number>);
+
+      const commissionAgg = await prisma.affiliateCommission.aggregate({
+        _sum: { commissionAmount: true },
+        where: {
+          affiliateId: a.id,
+          orderItem: { order: { paymentStatus: 'PAID', status: 'CONFIRMED' } }
+        }
+      });
+
+      // Resolve ticketTypeId -> name mapping for display
+      let byTicketTypeNamed: Record<string, number> | undefined = undefined;
+      if (Object.keys(byTicketType).length) {
+        const ids = Object.keys(byTicketType);
+        const types = await prisma.ticketType.findMany({ where: { id: { in: ids } } });
+        byTicketTypeNamed = {};
+        for (const t of types) {
+          byTicketTypeNamed[t.name] = byTicketType[t.id] || 0;
+        }
+      }
+
+      affiliatesWithStats.push({
+        id: a.id,
+        refCode: a.refCode,
+        createdAt: a.createdAt,
+        user: {
+          id: a.user.id,
+          fullName: a.user.fullName,
+          email: a.user.email,
+          phoneNumber: a.user.phoneNumber
+        },
+        stats: {
+          successfulOrders: successfulOrders.length,
+          ticketsSold,
+          subtotalRevenue,
+          totalCommission: commissionAgg._sum.commissionAmount || 0,
+          byTicketType: byTicketTypeNamed
+        }
+      });
+    }
+
+    const pagination: PaginationParams = {
+      currentPage: validPage,
+      totalPages: Math.max(1, Math.ceil(totalCount / validLimit)),
+      totalCount,
+      limit: validLimit,
+      hasNext: validPage * validLimit < totalCount,
+      hasPrevious: validPage > 1
+    };
+
+    return { success: true, affiliates: affiliatesWithStats, pagination };
+  } catch (error) {
+    console.error('[getAffiliates] Error:', error);
+    return { success: false, error: 'Failed to fetch affiliates' };
+  }
+}
+
+export interface AffiliateDetailsResult {
+  success: boolean;
+  affiliate?: {
+    id: string;
+    refCode: string;
+    createdAt: Date;
+    user: {
+      id: string;
+      fullName: string;
+      email: string;
+      phoneNumber: string;
+    };
+    commissionRules: Array<{ ticketTypeName: string; type: 'PERCENTAGE' | 'FIXED_AMOUNT'; rate?: number; amount?: number }>;
+  };
+  stats?: {
+    successfulOrders: number;
+    ticketsSold: number;
+    subtotalRevenue: number;
+    totalCommission: number;
+    byTicketType: Record<string, { tickets: number; revenue: number; commission: number }>;
+  };
+  recentOrders?: Array<{ id: string; orderId: string; createdAt: Date; subtotal: number; total: number }>;
+  error?: string;
+}
+
+export async function getAffiliateDetails(affiliateId: string): Promise<AffiliateDetailsResult> {
+  try {
+    if (!affiliateId) return { success: false, error: 'Affiliate ID is required' };
+
+    const affiliate = await prisma.affiliate.findUnique({
+      where: { id: affiliateId },
+      include: {
+        user: true,
+        commissionRules: { include: { ticketType: true } }
+      }
+    });
+
+    if (!affiliate) return { success: false, error: 'Affiliate not found' };
+
+    const successfulOrders = await prisma.order.findMany({
+      where: { affiliateId, paymentStatus: 'PAID', status: 'CONFIRMED' },
+      include: { orderItems: { include: { ticketType: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const commissionAgg = await prisma.affiliateCommission.aggregate({
+      _sum: { commissionAmount: true },
+      where: { affiliateId, orderItem: { order: { paymentStatus: 'PAID', status: 'CONFIRMED' } } }
+    });
+
+    const byTicketType = successfulOrders.reduce((acc, order) => {
+      order.orderItems.forEach(item => {
+        const key = item.ticketType.name;
+        if (!acc[key]) acc[key] = { tickets: 0, revenue: 0, commission: 0 };
+        acc[key].tickets += item.quantity;
+        acc[key].revenue += item.totalPrice;
+      });
+      return acc;
+    }, {} as Record<string, { tickets: number; revenue: number; commission: number }>);
+
+    // Fill commission per ticket type from AffiliateCommission
+    const commissionsByType = await prisma.affiliateCommission.groupBy({
+      by: ['ticketTypeId'],
+      _sum: { commissionAmount: true },
+      where: { affiliateId, orderItem: { order: { paymentStatus: 'PAID', status: 'CONFIRMED' } } }
+    });
+
+    const ticketTypes = await prisma.ticketType.findMany({});
+    for (const row of commissionsByType) {
+      const t = ticketTypes.find(tt => tt.id === row.ticketTypeId);
+      if (!t) continue;
+      if (!byTicketType[t.name]) byTicketType[t.name] = { tickets: 0, revenue: 0, commission: 0 };
+      byTicketType[t.name].commission = row._sum.commissionAmount || 0;
+    }
+
+    const details: AffiliateDetailsResult = {
+      success: true,
+      affiliate: {
+        id: affiliate.id,
+        refCode: affiliate.refCode,
+        createdAt: affiliate.createdAt,
+        user: {
+          id: affiliate.user.id,
+          fullName: affiliate.user.fullName,
+          email: affiliate.user.email,
+          phoneNumber: affiliate.user.phoneNumber
+        },
+        commissionRules: affiliate.commissionRules.map(r => ({
+          ticketTypeName: r.ticketType.name,
+          type: r.commissionType as 'PERCENTAGE' | 'FIXED_AMOUNT',
+          rate: r.rate ?? undefined,
+          amount: r.amount ?? undefined
+        }))
+      },
+      stats: {
+        successfulOrders: successfulOrders.length,
+        ticketsSold: successfulOrders.reduce((sum, o) => sum + o.orderItems.reduce((s, i) => s + i.quantity, 0), 0),
+        subtotalRevenue: successfulOrders.reduce((sum, o) => sum + o.subtotal, 0),
+        totalCommission: commissionAgg._sum.commissionAmount || 0,
+        byTicketType
+      },
+      recentOrders: successfulOrders.slice(0, 20).map(o => ({ id: o.id, orderId: o.orderId, createdAt: o.createdAt, subtotal: o.subtotal, total: o.total }))
+    };
+
+    return details;
+  } catch (error) {
+    console.error('[getAffiliateDetails] Error:', error);
+    return { success: false, error: 'Failed to fetch affiliate details' };
+  }
+}
+
+// ===== AFFILIATE CREATION ACTION =====
+
+export interface CreateAffiliateInput {
+  email: string;
+  fullName?: string;
+  phoneNumber?: string;
+  password?: string;
+}
+
+export interface CreateAffiliateResult {
+  success: boolean;
+  affiliateId?: string;
+  refCode?: string;
+  link?: string;
+  error?: string;
+}
+
+function generateRefCode(fullName?: string) {
+  const base = (fullName || '').replace(/[^a-zA-Z]/g, '').slice(0, 6).toUpperCase();
+  const suffix = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(2, 8);
+  return `${base || 'AFF'}${suffix}`;
+}
+
+export async function createAffiliateAndSendEmail(input: CreateAffiliateInput): Promise<CreateAffiliateResult> {
+  try {
+    if (!input.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
+      return { success: false, error: 'Valid email is required' };
+    }
+    if (input.password && input.password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters' };
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://shutupnrave.com';
+    const resendKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL;
+    if (!resendKey || !fromEmail) {
+      return { success: false, error: 'Email service is not configured' };
+    }
+
+    const resend = new Resend(resendKey);
+
+    // Upsert user by email
+    const user = await prisma.user.upsert({
+      where: { email: input.email },
+      update: {
+        fullName: input.fullName ?? undefined,
+        phoneNumber: input.phoneNumber ?? undefined,
+      },
+      create: {
+        email: input.email,
+        fullName: input.fullName || input.email.split('@')[0],
+        phoneNumber: input.phoneNumber || ''
+      }
+    });
+
+    // Ensure unique refCode
+    let refCode = generateRefCode(user.fullName);
+    // Attempt a few times to avoid rare collisions
+    for (let i = 0; i < 5; i++) {
+      const exists = await prisma.affiliate.findUnique({ where: { refCode } }).catch(() => null);
+      if (!exists) break;
+      refCode = generateRefCode(user.fullName);
+    }
+
+    // Create affiliate (or fetch if already exists)
+    const affiliate = await prisma.affiliate.upsert({
+      where: { userId: user.id },
+      update: input.password ? { passwordHash: await (await import('bcryptjs')).default.hash(input.password, 10) } : {},
+      create: {
+        userId: user.id,
+        refCode,
+        status: 'ACTIVE',
+        passwordHash: input.password ? await (await import('bcryptjs')).default.hash(input.password, 10) : null
+      }
+    });
+
+    // If affiliate existed without refCode, backfill
+    if (!affiliate.refCode) {
+      const updated = await prisma.affiliate.update({ where: { id: affiliate.id }, data: { refCode } });
+      refCode = updated.refCode;
+    }
+
+    const link = `${appUrl}/tickets?ref=${encodeURIComponent(refCode)}`;
+
+    const html = await render(
+      AffiliateWelcomeEmail({
+        appUrl,
+        fullName: user.fullName,
+        refCode,
+        link,
+        email: user.email,
+        temporaryPassword: input.password || undefined
+      })
+    );
+
+    await resend.emails.send({
+      from: `ShutUpNRave <${fromEmail}>`,
+      to: [user.email],
+      subject: 'Your ShutUpNRave Affiliate Link',
+      html
+    });
+
+    return { success: true, affiliateId: affiliate.id, refCode, link };
+  } catch (error) {
+    console.error('[createAffiliateAndSendEmail] Error:', error);
+    return { success: false, error: 'Failed to create affiliate or send email' };
   }
 }
 

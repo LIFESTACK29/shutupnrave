@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
+import { AppToaster } from "./components/ToasterProvider";
 
 const bricolage_grotesque = Bricolage_Grotesque({
   variable: "--font-bricolage_grotesque",
@@ -94,6 +95,7 @@ export default function RootLayout({
         <main className="mx-auto max-w-[90rem]">
           {children}
         </main>
+        <AppToaster />
       </body>
     </html>
   );

@@ -21,6 +21,8 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { render } from "@react-email/render";
 import { OrderConfirmationEmail } from "@/emails/order-confirmation";
+import AdminOrderNotificationEmail from "@/emails/admin-order-notification";
+import AffiliateSaleNotificationEmail from "@/emails/affiliate-sale-notification";
 import QRCode from "qrcode";
 import { v2 as cloudinary } from "cloudinary";
 import {
@@ -120,7 +122,8 @@ function getTicketBasePrice(ticketTypeName: string): number {
  */
 export async function initializePayment(
   userData: CheckoutFormData,
-  orderData: OrderData
+  orderData: OrderData,
+  affiliateRef?: string
 ): Promise<PaymentInitResponse> {
   try {
     // Step 1: Validate input data using Zod schemas
@@ -170,6 +173,16 @@ export async function initializePayment(
     // Step 5: Create pending order in database
     // This creates the order record before payment to track the transaction
     // Order starts as PENDING and gets updated after successful payment
+    // Resolve affiliate attribution by ref code if provided
+    let affiliateId: string | undefined = undefined;
+    if (affiliateRef) {
+      try {
+        const aff = await prisma.affiliate.findUnique({
+          where: { refCode: affiliateRef },
+        });
+        if (aff) affiliateId = aff.id;
+      } catch {}
+    }
     const order = await prisma.order.create({
       data: {
         orderId: customOrderId, // Our custom readable ID
@@ -187,6 +200,7 @@ export async function initializePayment(
             totalPrice: validatedOrder.subtotal,
           },
         },
+        ...(affiliateId ? { affiliateId } : {}),
       },
       include: {
         user: true, // Include user data for email later
@@ -221,6 +235,7 @@ export async function initializePayment(
             quantity: validatedOrder.quantity,
             customerName: validatedUser.fullName,
             customerPhone: validatedUser.phone,
+            affiliateRef: affiliateRef || null,
           },
           callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/tickets/payment-success`,
         }),
@@ -314,7 +329,7 @@ export async function verifyPayment(
     // Step 3: Send confirmation email with QR code and save QR URL
     // This generates QR code, uploads to Cloudinary, and sends email
     const qrCodeUrl = await sendOrderConfirmationEmail(order);
-    
+
     // Update order with QR code URL for admin verification
     const updatedOrder = await prisma.order.update({
       where: { orderId: reference },
@@ -328,6 +343,110 @@ export async function verifyPayment(
         },
       },
     });
+
+    // Step 3.5: Create affiliate commission records (10% per item) if attributed
+    if (updatedOrder.affiliateId) {
+      try {
+        const affiliateId = updatedOrder.affiliateId as string;
+        await Promise.all(
+          updatedOrder.orderItems.map(async (item) => {
+            // Avoid duplicate commission if verification retried
+            const existing = await prisma.affiliateCommission.findFirst({
+              where: { orderItemId: item.id, affiliateId },
+            });
+            if (existing) return;
+
+            const commissionAmount = Math.floor(item.totalPrice * 0.1);
+            await prisma.affiliateCommission.create({
+              data: {
+                affiliateId,
+                orderItemId: item.id,
+                ticketTypeId: item.ticketTypeId,
+                commissionType: "PERCENTAGE",
+                commissionRate: 0.1,
+                commissionAmount,
+              },
+            });
+          })
+        );
+
+        // Notify affiliate by email with commission summary
+        try {
+          const aff = await prisma.affiliate.findUnique({
+            where: { id: affiliateId },
+            include: { user: true },
+          });
+          const fromEmail = process.env.RESEND_FROM_EMAIL;
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+          if (aff && fromEmail) {
+            const commissionTotal = updatedOrder.orderItems.reduce(
+              (sum, it) => sum + Math.floor(it.totalPrice * 0.1),
+              0
+            );
+            const html = await render(
+              AffiliateSaleNotificationEmail({
+                appUrl,
+                fullName: aff.user.fullName,
+                refCode: aff.refCode,
+                orderId: updatedOrder.orderId,
+                items: updatedOrder.orderItems.map((i) => ({
+                  name: i.ticketType.name,
+                  quantity: i.quantity,
+                  totalPrice: i.totalPrice,
+                })),
+                subtotal: updatedOrder.subtotal,
+                commissionAmount: commissionTotal,
+              })
+            );
+            await resend.emails.send({
+              from: `ShutUpNRave <${fromEmail}>`,
+              to: [aff.user.email],
+              subject: `You earned a commission - Order ${updatedOrder.orderId}`,
+              html,
+            });
+          }
+        } catch (e) {
+          console.error("Failed to send affiliate notification:", e);
+        }
+      } catch (e) {
+        console.error("Failed to create affiliate commission records:", e);
+      }
+    }
+
+    // Step 3.6: Notify admin of new successful order (React Email template)
+    try {
+      const adminEmail = "shutupnraveee@gmail.com";
+      const fromEmail = process.env.RESEND_FROM_EMAIL;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+      if (fromEmail && adminEmail) {
+        const html = await render(
+          AdminOrderNotificationEmail({
+            appUrl,
+            orderId: updatedOrder.orderId,
+            customerName: updatedOrder.user.fullName,
+            customerEmail: updatedOrder.user.email,
+            customerPhone: updatedOrder.user.phoneNumber,
+            items: updatedOrder.orderItems.map((i) => ({
+              name: i.ticketType.name,
+              quantity: i.quantity,
+              totalPrice: i.totalPrice,
+            })),
+            subtotal: updatedOrder.subtotal,
+            processingFee: updatedOrder.processingFee,
+            total: updatedOrder.total,
+            affiliateAttributed: Boolean(updatedOrder.affiliateId),
+          })
+        );
+        await resend.emails.send({
+          from: `ShutUpNRave <${fromEmail}>`,
+          to: [adminEmail],
+          subject: `New Ticket Order ${updatedOrder.orderId}`,
+          html,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to send admin order notification:", e);
+    }
 
     return {
       success: true,
@@ -509,13 +628,13 @@ export async function getOrder(orderId: string): Promise<OrderResponse> {
 
 /**
  * Verifies and deactivates a ticket order (admin use only)
- * 
+ *
  * This function:
  * 1. Retrieves the order and verifies it exists and is active
  * 2. Marks the order as inactive (used/verified)
  * 3. Deletes the QR code from Cloudinary
  * 4. Returns the updated order data
- * 
+ *
  * @param {string} orderId - The custom order ID to verify
  * @returns {Promise<{ success: boolean; order?: Order; error?: string; message?: string }>}
  */
@@ -573,15 +692,18 @@ export async function verifyAndDeactivateTicket(orderId: string): Promise<{
     if (existingOrder.qrCodeUrl) {
       try {
         // Extract public_id from Cloudinary URL
-        const urlParts = existingOrder.qrCodeUrl.split('/');
+        const urlParts = existingOrder.qrCodeUrl.split("/");
         const publicIdWithExt = urlParts[urlParts.length - 1];
-        const publicId = publicIdWithExt.split('.')[0];
+        const publicId = publicIdWithExt.split(".")[0];
         const fullPublicId = `shutupnrave/qr-codes/${publicId}`;
 
         await cloudinary.uploader.destroy(fullPublicId);
         console.log(`QR code deleted from Cloudinary: ${fullPublicId}`);
       } catch (cloudinaryError) {
-        console.error("Failed to delete QR code from Cloudinary:", cloudinaryError);
+        console.error(
+          "Failed to delete QR code from Cloudinary:",
+          cloudinaryError
+        );
         // Continue with order deactivation even if QR deletion fails
       }
     }
@@ -619,14 +741,16 @@ export async function verifyAndDeactivateTicket(orderId: string): Promise<{
 
 /**
  * Gets order details for admin verification (read-only)
- * 
+ *
  * This function is used by the admin page to display order information
  * without making any changes to the order status.
- * 
+ *
  * @param {string} orderId - The custom order ID to retrieve
  * @returns {Promise<OrderResponse>} Order data for admin verification
  */
-export async function getOrderForAdmin(orderId: string): Promise<OrderResponse> {
+export async function getOrderForAdmin(
+  orderId: string
+): Promise<OrderResponse> {
   try {
     const order = await prisma.order.findUnique({
       where: { orderId },
@@ -656,7 +780,7 @@ export async function getOrderForAdmin(orderId: string): Promise<OrderResponse> 
 /**
  * Deactivates a ticket by setting isActive to false and deleting QR code from Cloudinary
  * Used by admin to mark tickets as used/invalid
- * 
+ *
  * @param {string} orderId - The custom order ID to deactivate
  * @returns {Promise<{success: boolean; error?: string}>}
  */
@@ -667,27 +791,27 @@ export async function deactivateTicket(orderId: string): Promise<{
   try {
     // Find and update the order
     const order = await prisma.order.findUnique({
-      where: { orderId }
+      where: { orderId },
     });
 
     if (!order) {
       return {
         success: false,
-        error: "Order not found"
+        error: "Order not found",
       };
     }
 
-    if (order.paymentStatus !== 'PAID') {
+    if (order.paymentStatus !== "PAID") {
       return {
         success: false,
-        error: "Cannot deactivate unpaid tickets"
+        error: "Cannot deactivate unpaid tickets",
       };
     }
 
     if (!order.isActive) {
       return {
         success: false,
-        error: "Ticket is already deactivated"
+        error: "Ticket is already deactivated",
       };
     }
 
@@ -711,20 +835,21 @@ export async function deactivateTicket(orderId: string): Promise<{
     // Update the order to deactivate the ticket and remove QR code URL
     await prisma.order.update({
       where: { orderId },
-      data: { 
+      data: {
         isActive: false,
         // qrCodeUrl: null // Remove QR code URL since it's been deleted
-      }
+      },
     });
 
     return {
-      success: true
+      success: true,
     };
   } catch (error) {
     console.error("Deactivate ticket error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to deactivate ticket"
+      error:
+        error instanceof Error ? error.message : "Failed to deactivate ticket",
     };
   }
 }

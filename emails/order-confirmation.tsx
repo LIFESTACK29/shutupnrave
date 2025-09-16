@@ -191,10 +191,10 @@ export const OrderConfirmationEmail = ({
 
             {/* What's Next */}
             <Section style={nextStepsBox}>
-              <Heading style={nextStepsTitle}>📱 What's Next?</Heading>
+              <Heading style={nextStepsTitle}>📱 What&apos;s Next?</Heading>
               <ul style={nextStepsList}>
                 <li style={nextStepsItem}>
-                  Save this email - it's your proof of purchase
+                  Save this email - it&apos;s your proof of purchase
                 </li>
                 <li style={nextStepsItem}>
                   Show your QR code at the entrance for quick entry
@@ -220,7 +220,7 @@ export const OrderConfirmationEmail = ({
           {/* Footer */}
           <Section style={footer}>
             <Heading style={footerTitle}>
-              Can't wait to see you there! 🎵
+              Can&apos;t wait to see you there! 🎵
             </Heading>
             <Text style={footerText}>
               Follow us on social media and join our WhatsApp channel for exclusive updates, 
@@ -474,12 +474,12 @@ const qrCodeOrderId = {
   fontFamily: "monospace",
 };
 
-const qrCodeUrl = {
-  color: "#666",
-  fontSize: "12px",
-  margin: "5px 0 0 0",
-  fontStyle: "italic",
-};
+// const qrCodeUrl = {
+//   color: "#666",
+//   fontSize: "12px",
+//   margin: "5px 0 0 0",
+//   fontStyle: "italic",
+// };
 
 const footer = {
   backgroundColor: "#000",
@@ -514,18 +514,18 @@ const socialButton = {
   fontSize: "14px",
 };
 
-const whatsappButton = {
-  backgroundColor: "#25D366",
-  color: "#ffffff",
-  textDecoration: "none",
-  margin: "10px 5px",
-  padding: "8px 16px",
-  borderRadius: "6px",
-  fontSize: "14px",
-  fontWeight: "bold",
-  border: "none",
-  display: "inline-block",
-};
+// const whatsappButton = {
+//   backgroundColor: "#25D366",
+//   color: "#ffffff",
+//   textDecoration: "none",
+//   margin: "10px 5px",
+//   padding: "8px 16px",
+//   borderRadius: "6px",
+//   fontSize: "14px",
+//   fontWeight: "bold",
+//   border: "none",
+//   display: "inline-block",
+// };
 
 const whatsappInlineButton = {
   backgroundColor: "#25D366",

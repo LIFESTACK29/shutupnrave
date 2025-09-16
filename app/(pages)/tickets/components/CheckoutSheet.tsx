@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -60,6 +61,7 @@ export default function CheckoutSheet({
 }: CheckoutSheetProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
+  const searchParams = useSearchParams();
 
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutFormSchema),
@@ -75,6 +77,7 @@ export default function CheckoutSheet({
     setProcessingMessage("Setting up your payment...");
 
     try {
+      const affiliateRef = searchParams?.get("ref") || undefined;
       // Initialize payment with Paystack
       const result = await initializePayment(
         {
@@ -88,7 +91,8 @@ export default function CheckoutSheet({
           subtotal: ticketInfo.subtotal,
           processingFee: ticketInfo.processingFee,
           total: ticketInfo.total,
-        }
+        },
+        affiliateRef
       );
 
       if (result.success) {

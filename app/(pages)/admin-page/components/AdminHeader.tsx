@@ -22,7 +22,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Database, Mail, Music, Heart } from 'lucide-react';
+import { LogOut, Database, Mail, Music, Heart, Link2 } from 'lucide-react';
 import { logoutAdmin } from '@/app/server/auth';
 
 // ===== CONSTANTS =====
@@ -33,6 +33,7 @@ const ADMIN_ROUTES = {
   emails: '/admin-page/emails',
   djApplications: '/admin-page/dj-applications',
   volunteerApplications: '/admin-page/volunteer-applications',
+  affiliates: '/admin-page/affiliates',
   login: '/admin-login'
 } as const;
 
@@ -74,6 +75,7 @@ export default function AdminHeader() {
     if (pathname === ADMIN_ROUTES.emails) return 'emails';
     if (pathname === ADMIN_ROUTES.djApplications) return 'dj-applications';
     if (pathname === ADMIN_ROUTES.volunteerApplications) return 'volunteer-applications';
+    if (pathname?.startsWith(ADMIN_ROUTES.affiliates)) return 'affiliates';
     return 'dashboard';
   };
 
@@ -93,6 +95,9 @@ export default function AdminHeader() {
         break;
       case 'volunteer-applications':
         router.push(ADMIN_ROUTES.volunteerApplications);
+        break;
+      case 'affiliates':
+        router.push(ADMIN_ROUTES.affiliates);
         break;
     }
   };
@@ -172,7 +177,7 @@ export default function AdminHeader() {
               onValueChange={handleTabChange} 
               className="w-full"
             >
-              <TabsList className="grid w-full grid-cols-4 bg-gray-100">
+              <TabsList className="grid w-full grid-cols-5 bg-gray-100">
                 <TabsTrigger 
                   value="dashboard" 
                   className="flex items-center gap-2 cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black"
@@ -204,6 +209,14 @@ export default function AdminHeader() {
                   <Heart className="h-4 w-4" />
                   <span className="hidden sm:inline">Volunteers</span>
                   <span className="sm:hidden">Vol</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="affiliates" 
+                  className="flex items-center gap-2 cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black"
+                >
+                  <Link2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Affiliates</span>
+                  <span className="sm:hidden">Aff</span>
                 </TabsTrigger>
               </TabsList>
             </Tabs>
