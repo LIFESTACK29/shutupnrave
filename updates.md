@@ -1,5 +1,52 @@
 # Development Updates Log
 
+## 2025-09-22T00:00:00.000Z
+- Added Discounts system (percentage-based, independent of affiliates)
+  - Prisma schema:
+    - New `Discount` model with `code`, `percentage`, `isActive`, `usageCount`
+    - `Order` augmented with discount snapshot fields: `discountId`, `discountCode`, `discountType`, `discountRate`, `discountAmount`
+  - Checkout flow (`app/server/checkout.ts`):
+    - Server-authoritative totals recomputation
+    - Discount validation by code (case-insensitive), applied to merchandise subtotal
+    - Processing fee computed pre-discount (5% assumed to match UI)
+    - Paystack metadata includes `discountCode` and `discountAmount`
+  - Verification:
+    - Increments `usageCount` on successful payment
+    - Affiliate commissions now computed on net per-item amounts after proportional discount allocation
+  - Emails:
+    - Customer and admin emails show discount line item with code
+  - UI:
+    - Checkout: added discount code input (optional) in `CheckoutSheet`
+    - Payment Success + Admin Order Details show discount line and code if applied
+  - Admin actions (`app/(pages)/admin-page/actions.ts`):
+    - `createDiscount`, `listDiscounts`, `setDiscountActive`
+  - Notes:
+    - No validity windows/max usage in v1; tracking via `usageCount`
+    - Discount is independent of affiliate; fee computed pre-discount as requested
+
+## 2025-09-22T00:20:00.000Z
+- Added Discounts admin UI
+  - New tab in `AdminHeader` for Discounts
+  - New page `app/(pages)/admin-page/discounts/page.tsx` with client `AdminDiscountsClient`
+  - Features: list/search codes, create code (custom or generated), activate/deactivate, usage count display
+  - Uses server actions: `listDiscounts`, `createDiscount`, `setDiscountActive`
+
+## 2025-09-22T01:00:00.000Z
+- Discount UX and checkout alignment improvements
+  - Added server validator `validateDiscountCode(ticketType, quantity, code, subtotalOverride?)`
+    - Computes discount amount and preview totals; respects processing fee pre-discount rule
+  - Checkout UI (`CheckoutSheet`)
+    - Added Apply button and toast notifications for success/error
+    - Button label updates to reflect discounted total
+    - Sends current subtotal to server validator for consistent math
+  - Paystack amount alignment (`app/server/checkout.ts`)
+    - Final total sent to Paystack = `clientSubtotal + clientProcessingFee - discountAmount`
+    - Uses the same inputs as the UI to avoid drift; amount now matches button total
+  - Order persistence & emails
+    - Persist discount snapshot on `Order` and display discount line in emails/admin
+  - Affiliate commissions
+    - Commission based on net per-item amounts after discount (proportional); unchanged
+
 ## 2025-09-16T12:00:00.000Z
 - Added complete Affiliates management to admin dashboard
   - Navigation: Added "Affiliates" tab in `AdminHeader` → `/admin-page/affiliates`

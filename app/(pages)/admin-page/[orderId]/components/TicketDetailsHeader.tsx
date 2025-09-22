@@ -19,6 +19,8 @@ interface Order {
   status: string;
   isActive: boolean;
   total: number;
+  discountAmount?: number;
+  discountCode?: string | null;
   createdAt: string | Date;
   user: {
     fullName: string;
@@ -107,6 +109,11 @@ export default function TicketDetailsHeader({ order }: TicketDetailsHeaderProps)
                 />
               </div>
             </div>
+            {order.discountAmount && order.discountAmount > 0 && (
+              <p className="text-xs text-gray-600">
+                Discount{order.discountCode ? ` (${order.discountCode})` : ''} applied: -₦{Number(order.discountAmount).toLocaleString()}
+              </p>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-sm text-gray-600">
               <div className="flex items-center space-x-1">
                 <User className="h-3 w-3" />

@@ -26,6 +26,8 @@ export interface AdminOrderNotificationEmailProps {
   customerPhone: string;
   items: OrderItemRow[];
   subtotal: number;
+  discountCode?: string | null;
+  discountAmount?: number;
   processingFee: number;
   total: number;
   affiliateAttributed?: boolean;
@@ -40,6 +42,8 @@ export default function AdminOrderNotificationEmail(props: AdminOrderNotificatio
     customerPhone,
     items,
     subtotal,
+    discountCode,
+    discountAmount,
     processingFee,
     total,
     affiliateAttributed,
@@ -75,6 +79,11 @@ export default function AdminOrderNotificationEmail(props: AdminOrderNotificatio
 
           <Section style={styles.panel}>
             <Text style={styles.text}><strong>Subtotal:</strong> ₦{subtotal.toLocaleString()}</Text>
+            {typeof discountAmount === 'number' && discountAmount > 0 && (
+              <Text style={styles.text}>
+                <strong>Discount{discountCode ? ` (${discountCode})` : ''}:</strong> -₦{discountAmount.toLocaleString()}
+              </Text>
+            )}
             <Text style={styles.text}><strong>Processing Fee:</strong> ₦{processingFee.toLocaleString()}</Text>
             <Text style={styles.text}><strong>Total:</strong> ₦{total.toLocaleString()}</Text>
           </Section>

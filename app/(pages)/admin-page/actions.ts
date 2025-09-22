@@ -18,6 +18,7 @@ import type { Prisma } from '@prisma/client';
 import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import AffiliateWelcomeEmail from '@/emails/affiliate-welcome';
+import { z } from 'zod';
 
 // ===== TYPE DEFINITIONS =====
 
@@ -264,6 +265,11 @@ export async function getOrdersWithFilters(
       ...order,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
+      discountId: (order as any).discountId ?? null,
+      discountCode: (order as any).discountCode ?? null,
+      discountType: (order as any).discountType ?? null,
+      discountRate: (order as any).discountRate ?? null,
+      discountAmount: (order as any).discountAmount ?? 0,
       user: {
         ...order.user,
         createdAt: order.user.createdAt,
@@ -1025,3 +1031,54 @@ export async function exportEmails(
     };
   }
 } 
+
+// ===== DISCOUNT MANAGEMENT ACTIONS =====
+
+const CreateDiscountSchema = z.object({
+  code: z.string().trim().min(3).max(32).optional(),
+  percentage: z.number().gt(0).lte(1), // 0.1 for 10%
+  isActive: z.boolean().optional(),
+});
+
+export async function createDiscount(input: { code?: string; percentage: number; isActive?: boolean }): Promise<{ success: boolean; id?: string; code?: string; error?: string }>{
+  try {
+    const parsed = CreateDiscountSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: 'Invalid discount input' };
+    const code = (parsed.data.code || Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(2, 10)).toUpperCase();
+    const discount = await prisma.discount.create({
+      data: {
+        code,
+        type: 'PERCENTAGE',
+        percentage: parsed.data.percentage,
+        isActive: parsed.data.isActive ?? true,
+      }
+    });
+    return { success: true, id: discount.id, code: discount.code };
+  } catch (e) {
+    console.error('[createDiscount] Error:', e);
+    return { success: false, error: 'Failed to create discount' };
+  }
+}
+
+export async function listDiscounts(): Promise<{ success: boolean; discounts?: Array<{ id: string; code: string; percentage: number; isActive: boolean; usageCount: number; createdAt: Date }>; error?: string }>{
+  try {
+    const discounts = await prisma.discount.findMany({ orderBy: { createdAt: 'desc' } });
+    return {
+      success: true,
+      discounts: discounts.map(d => ({ id: d.id, code: d.code, percentage: d.percentage, isActive: d.isActive, usageCount: d.usageCount, createdAt: d.createdAt }))
+    };
+  } catch (e) {
+    console.error('[listDiscounts] Error:', e);
+    return { success: false, error: 'Failed to fetch discounts' };
+  }
+}
+
+export async function setDiscountActive(id: string, isActive: boolean): Promise<{ success: boolean; error?: string }>{
+  try {
+    await prisma.discount.update({ where: { id }, data: { isActive } });
+    return { success: true };
+  } catch (e) {
+    console.error('[setDiscountActive] Error:', e);
+    return { success: false, error: 'Failed to update discount' };
+  }
+}

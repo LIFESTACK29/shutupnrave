@@ -62,6 +62,12 @@ export type Order = {
   subtotal: number; // Total before processing fees (in kobo)
   processingFee: number; // Payment processing fee (in kobo)
   total: number; // Final amount charged (in kobo)
+  // Discount snapshot
+  discountId?: string | null;
+  discountCode?: string | null;
+  discountType?: 'PERCENTAGE' | null;
+  discountRate?: number | null; // e.g., 0.1 for 10%
+  discountAmount: number; // in kobo
   status: string; // Order status ("PENDING" | "CONFIRMED" | "CANCELLED")
   paymentStatus: string; // Payment status ("PENDING" | "PAID" | "FAILED")
   isActive: boolean; // Whether the ticket is active/unused (default: true)
@@ -98,6 +104,7 @@ export type OrderData = {
   subtotal: number; // Total before processing fee (in kobo)
   processingFee: number; // Payment processing fee (in kobo)
   total: number; // Final amount to charge (in kobo)
+  discountCode?: string; // Optional discount code entered by user
 };
 
 // ===== API RESPONSE TYPES =====
@@ -159,6 +166,8 @@ export type OrderConfirmationEmailProps = {
   orderId: string; // Custom order ID for reference
   ticketDetails: TicketDetail[]; // Array of purchased tickets
   subtotal: number; // Total before processing fee (in kobo)
+  discountCode?: string | null; // Applied discount code
+  discountAmount?: number; // Discount amount in kobo
   processingFee: number; // Processing fee (in kobo)
   total: number; // Final amount paid (in kobo)
   eventDate: string; // Event date

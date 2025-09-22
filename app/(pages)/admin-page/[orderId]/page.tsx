@@ -236,6 +236,14 @@ export default async function OrderDetailsPage({ params }: PageProps) {
                 <span>Subtotal</span>
                 <span>{formatCurrency(order.subtotal)}</span>
               </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between items-center">
+                  <span>
+                    Discount{order.discountCode ? ` (${order.discountCode})` : ''}
+                  </span>
+                  <span>-{formatCurrency(order.discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span>Processing Fee</span>
                 <span>{formatCurrency(order.processingFee)}</span>

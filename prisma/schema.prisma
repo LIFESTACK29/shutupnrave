@@ -98,6 +98,13 @@ model Order {
   // QR Code Information
   qrCodeUrl String? // Cloudinary URL for QR code image
 
+  // Discount snapshot (applied at time of purchase)
+  discountId     String?       @db.ObjectId
+  discountCode   String?
+  discountType   DiscountType?
+  discountRate   Float?
+  discountAmount Int           @default(0) // in kobo/cents
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -215,6 +222,25 @@ model AffiliateCommission {
   createdAt       DateTime @default(now())
 
   @@map("affiliate_commissions")
+}
+
+// Discount Types
+enum DiscountType {
+  PERCENTAGE
+}
+
+// Discount codes created by admin
+model Discount {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  code            String        @unique
+  type            DiscountType  @default(PERCENTAGE)
+  percentage      Float         // 0.1 for 10%
+  isActive        Boolean       @default(true)
+  usageCount      Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("discounts")
 }
 
 // Enums for order status

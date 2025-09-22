@@ -64,6 +64,7 @@ const OrderDataSchema = z.object({
   subtotal: z.number().min(1), // Amount in kobo (NGN * 100)
   processingFee: z.number().min(0), // Processing fee in kobo
   total: z.number().min(1), // Final amount in kobo
+  discountCode: z.string().trim().min(1).max(32).optional(),
 });
 
 // Types are now imported from @/types
@@ -166,7 +167,42 @@ export async function initializePayment(
       });
     }
 
-    // Step 4: Generate custom order ID for customer reference
+    // Step 4: Recompute authoritative totals server-side with discount handling
+    // Base subtotal uses client-provided value to stay consistent with UI
+
+    // Discount resolution (independent of affiliate)
+    let discountSnapshot: {
+      discountId?: string;
+      discountCode?: string;
+      discountType?: 'PERCENTAGE';
+      discountRate?: number;
+      discountAmount: number;
+    } = { discountAmount: 0 };
+
+    if (validatedOrder.discountCode) {
+      const code = validatedOrder.discountCode.trim().toUpperCase();
+      const discount = await prisma.discount.findUnique({ where: { code } }).catch(() => null);
+      if (discount && discount.isActive && discount.type === 'PERCENTAGE' && discount.percentage > 0 && discount.percentage <= 1) {
+        // Align discount computation with UI by using client-provided subtotal
+        const amount = Math.floor(validatedOrder.subtotal * discount.percentage);
+        discountSnapshot = {
+          discountId: discount.id,
+          discountCode: discount.code,
+          discountType: 'PERCENTAGE',
+          discountRate: discount.percentage,
+          discountAmount: amount,
+        };
+      }
+    }
+
+    // Processing fee remains as original (provided by client/UI) regardless of discount
+    const processingFeeAuthoritative = validatedOrder.processingFee;
+
+    // Compute authoritative total from base subtotal + original fee − discount (avoid double-subtract)
+    const baseTotalBeforeDiscount = validatedOrder.subtotal + processingFeeAuthoritative;
+    const totalAuthoritative = Math.max(0, baseTotalBeforeDiscount - (discountSnapshot.discountAmount || 0));
+
+    // Step 5: Generate custom order ID for customer reference
     // This creates a human-readable ID separate from MongoDB's ObjectId
     const customOrderId = generateOrderId();
 
@@ -188,15 +224,24 @@ export async function initializePayment(
         orderId: customOrderId, // Our custom readable ID
         userId: user.id,
         subtotal: validatedOrder.subtotal,
-        processingFee: validatedOrder.processingFee,
-        total: validatedOrder.total,
+        processingFee: processingFeeAuthoritative,
+        total: totalAuthoritative,
+        ...(discountSnapshot.discountAmount > 0
+          ? {
+              discountId: discountSnapshot.discountId,
+              discountCode: discountSnapshot.discountCode,
+              discountType: 'PERCENTAGE' as const,
+              discountRate: discountSnapshot.discountRate,
+              discountAmount: discountSnapshot.discountAmount,
+            }
+          : {}),
         status: "PENDING", // Will be CONFIRMED after payment
         paymentStatus: "PENDING", // Will be PAID after payment
         orderItems: {
           create: {
             ticketTypeId: ticketType.id,
             quantity: validatedOrder.quantity,
-            unitPrice: validatedOrder.subtotal / validatedOrder.quantity,
+            unitPrice: Math.floor(validatedOrder.subtotal / validatedOrder.quantity),
             totalPrice: validatedOrder.subtotal,
           },
         },
@@ -225,7 +270,7 @@ export async function initializePayment(
         body: JSON.stringify({
           reference: order.orderId, // Use our custom order ID as payment reference
           email: validatedUser.email,
-          amount: validatedOrder.total * 100, // Paystack expects amount in kobo (multiply by 100)
+          amount: totalAuthoritative * 100, // Paystack expects amount in kobo (multiply by 100)
           currency: "NGN", // Nigerian Naira
           metadata: {
             // Additional data for payment tracking and verification
@@ -236,6 +281,8 @@ export async function initializePayment(
             customerName: validatedUser.fullName,
             customerPhone: validatedUser.phone,
             affiliateRef: affiliateRef || null,
+            discountCode: discountSnapshot.discountCode || null,
+            discountAmount: discountSnapshot.discountAmount || 0,
           },
           callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/tickets/payment-success`,
         }),
@@ -267,6 +314,71 @@ export async function initializePayment(
           ? error.message
           : "Payment initialization failed",
     };
+  }
+}
+
+/**
+ * Validates a discount code against current selection and returns computed totals
+ * - Processing fee is computed on pre-discount subtotal (5%)
+ */
+export async function validateDiscountCode(
+  ticketTypeName: string,
+  quantity: number,
+  discountCode: string,
+  subtotalOverride?: number
+): Promise<{
+  success: boolean;
+  data?: {
+    code: string;
+    rate: number;
+    amount: number;
+    subtotal: number;
+    discountedSubtotal: number;
+    processingFee: number;
+    total: number;
+  };
+  error?: string;
+}> {
+  try {
+    if (!ticketTypeName || !quantity || quantity < 1) {
+      return { success: false, error: "Invalid selection" };
+    }
+    if (!discountCode || !discountCode.trim()) {
+      return { success: false, error: "Enter a discount code" };
+    }
+
+    const subtotal = typeof subtotalOverride === 'number'
+      ? subtotalOverride
+      : getTicketBasePrice(ticketTypeName) * quantity;
+
+    const code = discountCode.trim().toUpperCase();
+    const discount = await prisma.discount.findUnique({ where: { code } }).catch(() => null);
+    if (!discount || !discount.isActive || discount.type !== 'PERCENTAGE' || !discount.percentage || discount.percentage <= 0) {
+      return { success: false, error: "Invalid or inactive code" };
+    }
+
+    const rate = discount.percentage;
+    const amount = Math.floor(subtotal * rate);
+    const discountedSubtotal = Math.max(0, subtotal - amount);
+    const processingFeeRate = 0.05;
+    const processingFee = Math.floor(subtotal * processingFeeRate);
+    const total = discountedSubtotal + processingFee;
+
+    return {
+      success: true,
+      data: {
+        code,
+        rate,
+        amount,
+        subtotal,
+        discountedSubtotal,
+        processingFee,
+        total,
+      },
+    };
+  } catch (e) {
+    console.error('validateDiscountCode error:', e);
+    return { success: false, error: 'Failed to validate code' };
   }
 }
 
@@ -344,6 +456,19 @@ export async function verifyPayment(
       },
     });
 
+    // Step 3.25: Increment discount usage counter if a discount was applied
+    try {
+      const code = (updatedOrder as unknown as { discountCode?: string | null }).discountCode || undefined;
+      if (code) {
+        await prisma.discount.update({
+          where: { code },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
+    } catch (e) {
+      console.error('Failed to increment discount usage:', e);
+    }
+
     // Step 3.5: Create affiliate commission records (10% per item) if attributed
     if (updatedOrder.affiliateId) {
       try {
@@ -356,7 +481,12 @@ export async function verifyPayment(
             });
             if (existing) return;
 
-            const commissionAmount = Math.floor(item.totalPrice * 0.1);
+            // Commission is based on net amount after discount, proportionally allocated
+            const orderSubtotal = updatedOrder.subtotal || 0;
+            const orderDiscount = updatedOrder.discountAmount || 0;
+            const itemShare = orderSubtotal > 0 ? Math.floor((item.totalPrice / orderSubtotal) * orderDiscount) : 0;
+            const itemNet = Math.max(0, item.totalPrice - itemShare);
+            const commissionAmount = Math.floor(itemNet * 0.1);
             await prisma.affiliateCommission.create({
               data: {
                 affiliateId,
@@ -379,10 +509,13 @@ export async function verifyPayment(
           const fromEmail = process.env.RESEND_FROM_EMAIL;
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
           if (aff && fromEmail) {
-            const commissionTotal = updatedOrder.orderItems.reduce(
-              (sum, it) => sum + Math.floor(it.totalPrice * 0.1),
-              0
-            );
+            const orderSubtotal = updatedOrder.subtotal || 0;
+            const orderDiscount = updatedOrder.discountAmount || 0;
+            const commissionTotal = updatedOrder.orderItems.reduce((sum, it) => {
+              const itemShare = orderSubtotal > 0 ? Math.floor((it.totalPrice / orderSubtotal) * orderDiscount) : 0;
+              const itemNet = Math.max(0, it.totalPrice - itemShare);
+              return sum + Math.floor(itemNet * 0.1);
+            }, 0);
             const html = await render(
               AffiliateSaleNotificationEmail({
                 appUrl,
@@ -432,6 +565,8 @@ export async function verifyPayment(
               totalPrice: i.totalPrice,
             })),
             subtotal: updatedOrder.subtotal,
+            discountCode: (updatedOrder as unknown as { discountCode?: string | null }).discountCode ?? undefined,
+            discountAmount: (updatedOrder as unknown as { discountAmount?: number }).discountAmount ?? 0,
             processingFee: updatedOrder.processingFee,
             total: updatedOrder.total,
             affiliateAttributed: Boolean(updatedOrder.affiliateId),
@@ -559,6 +694,8 @@ async function sendOrderConfirmationEmail(order: Order): Promise<string> {
         orderId: order.orderId, // Our custom readable order ID
         ticketDetails, // Formatted ticket information
         subtotal: order.subtotal,
+        discountCode: (order as unknown as { discountCode?: string | null }).discountCode ?? undefined,
+        discountAmount: (order as unknown as { discountAmount?: number }).discountAmount ?? 0,
         processingFee: order.processingFee,
         total: order.total,
         eventDate: order.eventDate,

@@ -248,6 +248,14 @@ function PaymentSuccessContent() {
                           {formatPrice(order.subtotal)}
                         </span>
                       </div>
+                      {order.discountAmount > 0 && (
+                        <div className="flex justify-between text-xs md:text-sm mb-2">
+                          <span className="text-white/70">
+                            Discount{order.discountCode ? ` (${order.discountCode})` : ''}:
+                          </span>
+                          <span className="text-white">- {formatPrice(order.discountAmount)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-xs md:text-sm mb-2">
                         <span className="text-white/70">Processing Fee:</span>
                         <span className="text-white">

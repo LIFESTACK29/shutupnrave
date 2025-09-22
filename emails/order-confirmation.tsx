@@ -39,6 +39,8 @@ export const OrderConfirmationEmail = ({
   orderId,
   ticketDetails,
   subtotal,
+  discountCode,
+  discountAmount,
   processingFee,
   total,
   eventDate,
@@ -149,6 +151,19 @@ export const OrderConfirmationEmail = ({
                   <Text style={ticketText}>{formatPrice(subtotal)}</Text>
                 </Column>
               </Row>
+
+          {typeof discountAmount === 'number' && discountAmount > 0 && (
+            <Row style={ticketRow}>
+              <Column style={ticketLeft}>
+                <Text style={ticketText}>
+                  Discount{discountCode ? ` (${discountCode})` : ''}:
+                </Text>
+              </Column>
+              <Column style={ticketRight}>
+                <Text style={ticketText}>- {formatPrice(discountAmount)}</Text>
+              </Column>
+            </Row>
+          )}
 
               <Row style={ticketRow}>
                 <Column style={ticketLeft}>

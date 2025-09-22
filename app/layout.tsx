@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { AppToaster } from "./components/ToasterProvider";
+import { Analytics } from "@vercel/analytics/next";
 
 const bricolage_grotesque = Bricolage_Grotesque({
   variable: "--font-bricolage_grotesque",
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
     "shutupnrave.com.ng",
     "music event",
     "tech event",
-    "buy tickets online"
+    "buy tickets online",
   ],
   authors: [{ name: "shutupnrave", url: "https://shutupnrave.com.ng" }],
   creator: "shutupnrave",
@@ -50,9 +51,10 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "shutupnrave | Tech Rave",
-    description: "shutupnrave is a seamless ticketing platform for tech raves. Secure your spot, manage your tickets, and experience the future of event access at shutupnrave.com.ng.",
+    description:
+      "shutupnrave is a seamless ticketing platform for tech raves. Secure your spot, manage your tickets, and experience the future of event access at shutupnrave.com.ng.",
     images: [
-      "https://res.cloudinary.com/dpesanzkk/image/upload/v1751714360/shutupnrave.purple_wo1mkz.jpg", 
+      "https://res.cloudinary.com/dpesanzkk/image/upload/v1751714360/shutupnrave.purple_wo1mkz.jpg",
     ],
     creator: "@shutupnrave", // Replace with actual Twitter handle if available
   },
@@ -94,6 +96,7 @@ export default function RootLayout({
       <body className={`${bricolage_grotesque.variable} antialiased`}>
         <main className="mx-auto max-w-[90rem]">
           {children}
+          <Analytics />
         </main>
         <AppToaster />
       </body>

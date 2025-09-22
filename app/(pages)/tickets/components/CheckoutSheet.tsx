@@ -24,7 +24,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { initializePayment } from "@/app/server/checkout";
+import { initializePayment, validateDiscountCode } from "@/app/server/checkout";
+import { showError, showSuccess } from "@/app/components/ToasterProvider";
 
 // Form validation schema
 const checkoutFormSchema = z.object({
@@ -61,6 +62,9 @@ export default function CheckoutSheet({
 }: CheckoutSheetProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
+  const [discountCode, setDiscountCode] = useState("");
+  const [applied, setApplied] = useState<{ code: string; rate: number; amount: number } | null>(null);
+  const [previewTotals, setPreviewTotals] = useState<{ subtotal: number; processingFee: number; total: number } | null>(null);
   const searchParams = useSearchParams();
 
   const form = useForm<CheckoutFormData>({
@@ -88,9 +92,10 @@ export default function CheckoutSheet({
         {
           ticketType: ticketInfo.name,
           quantity: ticketInfo.quantity,
-          subtotal: ticketInfo.subtotal,
-          processingFee: ticketInfo.processingFee,
-          total: ticketInfo.total,
+          subtotal: previewTotals ? previewTotals.subtotal : ticketInfo.subtotal,
+          processingFee: previewTotals ? previewTotals.processingFee : ticketInfo.processingFee,
+          total: previewTotals ? previewTotals.total : ticketInfo.total,
+          discountCode: discountCode || undefined,
         },
         affiliateRef
       );
@@ -109,11 +114,42 @@ export default function CheckoutSheet({
     } catch (error) {
       console.error("Payment error:", error);
       setProcessingMessage("");
-      alert(
+      showError(
         error instanceof Error
           ? error.message
           : "Something went wrong. Please try again."
       );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) return;
+    setIsProcessing(true);
+    setProcessingMessage("Validating code...");
+    try {
+      const res = await validateDiscountCode(
+        ticketInfo.name,
+        ticketInfo.quantity,
+        discountCode.trim(),
+        ticketInfo.subtotal
+      );
+      if (!res.success || !res.data) {
+        setApplied(null);
+        setPreviewTotals(null);
+        showError(res.error || "Invalid code");
+        return;
+      }
+      setApplied({ code: res.data.code, rate: res.data.rate, amount: res.data.amount });
+      // Per requirement: keep processing fee as originally shown, subtract discount from original total
+      const finalTotal = Math.max(0, ticketInfo.total - res.data.amount);
+      setPreviewTotals({ subtotal: ticketInfo.subtotal, processingFee: ticketInfo.processingFee, total: finalTotal });
+      showSuccess(`Applied ${Math.round(res.data.rate * 100)}% off (${res.data.code})`);
+      setProcessingMessage("");
+    } catch (e) {
+      console.error(e);
+      showError("Failed to validate code");
     } finally {
       setIsProcessing(false);
     }
@@ -152,6 +188,25 @@ export default function CheckoutSheet({
               {formatPrice(ticketInfo.subtotal)}
             </span>
           </div>
+          {/* Discount code input */}
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Discount code (optional)"
+              value={discountCode}
+              onChange={(e) => setDiscountCode(e.target.value)}
+              disabled={isProcessing}
+              className="bg-black border-2 border-white/20 text-white placeholder-white/40 focus:border-yellow-400 focus:ring-0 focus:ring-offset-0 rounded-lg h-10"
+            />
+            <Button type="button" onClick={handleApplyDiscount} disabled={isProcessing || !discountCode.trim()} className="bg-yellow-400 text-black hover:bg-yellow-500 h-10">
+              {isProcessing ? '...' : 'Apply'}
+            </Button>
+          </div>
+          {applied && (
+            <div className="flex justify-between text-sm">
+              <span className="text-green-400">Applied {Math.round(applied.rate * 100)}% off ({applied.code})</span>
+              <span className="text-green-400">- {formatPrice(applied.amount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-white/70">Processing Fee (5%)</span>
             <span className="text-white font-medium">
@@ -162,7 +217,7 @@ export default function CheckoutSheet({
           <div className="flex justify-between font-bold text-lg">
             <span className="text-white">Total</span>
             <span className="text-yellow-400">
-              {formatPrice(ticketInfo.total)}
+              {formatPrice(previewTotals ? previewTotals.total : ticketInfo.total)}
             </span>
           </div>
         </div>
@@ -247,7 +302,7 @@ export default function CheckoutSheet({
                     {processingMessage || "Processing..."}
                   </div>
                 ) : (
-                  `Pay ${formatPrice(ticketInfo.total)} - Secure Payment`
+                  `Pay ${formatPrice(previewTotals ? previewTotals.total : ticketInfo.total)} - Secure Payment`
                 )}
               </Button>
 
