@@ -53,7 +53,7 @@ export default function Event() {
             {/* Event Details */}
             <div className="mb-4 space-y-1">
               <div className="text-black font-bold text-base">
-                November 29, 2025 / Nigeria
+                November 22, 2025 / Nigeria
               </div>
               {/* <div className="text-lg font-bold text-black">
                                     Tech Rave <span className="text-sm">(Port Harcourt)</span>
