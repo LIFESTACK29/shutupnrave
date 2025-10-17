@@ -1082,3 +1082,48 @@ export async function setDiscountActive(id: string, isActive: boolean): Promise<
     return { success: false, error: 'Failed to update discount' };
   }
 }
+
+const UpdateDiscountSchema = z.object({
+  code: z.string().trim().min(3).max(32),
+  percentage: z.number().gt(0).lte(1), // 0.1 for 10%
+  isActive: z.boolean(),
+});
+
+export async function updateDiscount(
+  id: string,
+  input: { code: string; percentage: number; isActive: boolean }
+): Promise<{ success: boolean; error?: string }>{
+  try {
+    const parsed = UpdateDiscountSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: 'Invalid discount input' };
+
+    // Check if code already exists for a different discount
+    const existing = await prisma.discount.findUnique({ where: { code: parsed.data.code.toUpperCase() } });
+    if (existing && existing.id !== id) {
+      return { success: false, error: 'Discount code already exists' };
+    }
+
+    await prisma.discount.update({
+      where: { id },
+      data: {
+        code: parsed.data.code.toUpperCase(),
+        percentage: parsed.data.percentage,
+        isActive: parsed.data.isActive,
+      }
+    });
+    return { success: true };
+  } catch (e) {
+    console.error('[updateDiscount] Error:', e);
+    return { success: false, error: 'Failed to update discount' };
+  }
+}
+
+export async function deleteDiscount(id: string): Promise<{ success: boolean; error?: string }>{
+  try {
+    await prisma.discount.delete({ where: { id } });
+    return { success: true };
+  } catch (e) {
+    console.error('[deleteDiscount] Error:', e);
+    return { success: false, error: 'Failed to delete discount' };
+  }
+}

@@ -1,5 +1,70 @@
 # Development Updates Log
 
+## 2025-10-17T00:30:00.000Z
+- **Replaced Deactivate with Delete Functionality in Discount Management**
+  - Removed Deactivate/Activate button from discount cards
+  - Added `deleteDiscount` server action in `app/(pages)/admin-page/actions.ts`:
+    - Deletes discount by ID from database
+    - Returns success/error response with proper error handling
+    - Includes logging for debugging
+  - Updated `AdminDiscountsClient` component:
+    - Removed separate Deactivate/Activate button (now only Edit button on cards)
+    - Added Delete button inside Edit Dialog footer with confirmation workflow
+    - Implemented two-step delete confirmation:
+      - First click shows "Are you sure?" with Yes/Cancel options
+      - Prevents accidental deletions
+    - Delete confirmation UI:
+      - "Delete" button (red/destructive variant) on left side of dialog footer
+      - When clicked, shows inline confirmation: "Are you sure? [Yes, Delete] [Cancel]"
+      - "Yes, Delete" button shows loading state ("Deleting...")
+      - Cancel button resets confirmation state
+    - Dialog footer layout:
+      - Left side: Delete button with confirmation flow
+      - Right side: Cancel and Update buttons
+    - Success toast notification after successful deletion
+    - Automatic refresh of discount list after deletion
+    - Reset confirmation state when dialog closes
+  - UI/UX improvements:
+    - Cleaner discount card layout with single Edit button
+    - Better separation of edit and delete actions (both in dialog)
+    - Confirmation prevents accidental deletions
+    - Loading states for both update and delete operations
+  - Code cleanup:
+    - Removed unused `setDiscountActive` import
+    - Added state management for delete confirmation (`showDeleteConfirm`, `isDeleting`)
+
+## 2025-10-17T00:00:00.000Z
+- **Enhanced Discount Management with Edit Functionality**
+  - Added `updateDiscount` server action in `app/(pages)/admin-page/actions.ts`:
+    - Validates code, percentage, and active status with Zod schema
+    - Prevents duplicate codes across different discounts
+    - Updates discount code (uppercase), percentage, and active status
+    - Returns success/error response with proper error handling
+  - Updated `AdminDiscountsClient` component:
+    - Added Edit button to each discount card alongside Deactivate/Activate button
+    - Created Edit Dialog with pre-populated form fields:
+      - Code input (editable, minimum 3 characters)
+      - Percentage input (1-100% validation)
+      - Active checkbox toggle
+    - Implemented proper state management for editing:
+      - `editingDiscount` state to track which discount is being edited
+      - Separate state for edit form fields (`editCode`, `editPercentage`, `editIsActive`)
+    - Added validation before submission:
+      - Code must be at least 3 characters
+      - Percentage must be between 1-100
+    - Success toast notification after successful update
+    - Automatic refresh of discount list after update
+  - UI/UX improvements:
+    - Smaller button sizes for better mobile responsiveness
+    - Two-button layout (Edit + Deactivate/Activate) in discount cards
+    - Cancel button in Edit dialog for better user control
+    - Loading state ("Updating...") during save operation
+    - Clear error messages for validation failures
+  - Security & Data Integrity:
+    - Server-side validation prevents duplicate discount codes
+    - Code uniqueness check excludes current discount ID
+    - Proper error handling and logging in server actions
+
 ## 2025-09-22T00:00:00.000Z
 - Added Discounts system (percentage-based, independent of affiliates)
   - Prisma schema:

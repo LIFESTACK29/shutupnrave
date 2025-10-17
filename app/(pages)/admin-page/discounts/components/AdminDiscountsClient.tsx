@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { listDiscounts, createDiscount, setDiscountActive } from "../../actions";
+import { listDiscounts, createDiscount, updateDiscount, deleteDiscount } from "../../actions";
 import { showError, showSuccess } from "@/app/components/ToasterProvider";
 
 interface DiscountRow {
@@ -27,6 +27,15 @@ export default function AdminDiscountsClient() {
   const [percentage, setPercentage] = useState("10");
   const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Edit dialog state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingDiscount, setEditingDiscount] = useState<DiscountRow | null>(null);
+  const [editCode, setEditCode] = useState("");
+  const [editPercentage, setEditPercentage] = useState("10");
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -151,18 +160,17 @@ export default function AdminDiscountsClient() {
                         <div className="text-xs text-gray-500">{new Date(d.createdAt).toLocaleDateString()}</div>
                         <Button
                           variant="outline"
-                          onClick={async () => {
-                            const res = await setDiscountActive(d.id, !d.isActive);
-                            if (res.success) {
-                              const reload = await listDiscounts();
-                              setDiscounts(reload.discounts || []);
-                            } else {
-                              showError(res.error || 'Failed to update');
-                            }
+                          size="sm"
+                          onClick={() => {
+                            setEditingDiscount(d);
+                            setEditCode(d.code);
+                            setEditPercentage(String(Math.round(d.percentage * 100)));
+                            setEditIsActive(d.isActive);
+                            setIsEditDialogOpen(true);
                           }}
                           className="cursor-pointer"
                         >
-                          {d.isActive ? 'Deactivate' : 'Activate'}
+                          Edit
                         </Button>
                       </div>
                     </div>
@@ -172,6 +180,151 @@ export default function AdminDiscountsClient() {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Discount Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Discount</DialogTitle>
+              <DialogDescription>Update the discount code, percentage, or active status.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3 py-2">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Code</label>
+                <Input 
+                  placeholder="Discount code" 
+                  value={editCode} 
+                  onChange={(e) => setEditCode(e.target.value)} 
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Percentage</label>
+                <Input
+                  placeholder="Percentage (e.g. 10 for 10%)"
+                  value={editPercentage}
+                  onChange={(e) => setEditPercentage(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <input 
+                  id="edit-active" 
+                  type="checkbox" 
+                  checked={editIsActive} 
+                  onChange={(e) => setEditIsActive(e.target.checked)} 
+                />
+                <label htmlFor="edit-active">Active</label>
+              </div>
+            </div>
+            <DialogFooter className="flex justify-between items-center">
+              <div className="flex gap-2">
+                {!showDeleteConfirm ? (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="cursor-pointer"
+                  >
+                    Delete
+                  </Button>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <span className="text-sm text-gray-600">Are you sure?</span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={async () => {
+                        if (!editingDiscount) return;
+                        setIsDeleting(true);
+                        try {
+                          const res = await deleteDiscount(editingDiscount.id);
+                          if (res.success) {
+                            const reload = await listDiscounts();
+                            setDiscounts(reload.discounts || []);
+                            setIsEditDialogOpen(false);
+                            setEditingDiscount(null);
+                            setShowDeleteConfirm(false);
+                            showSuccess('Discount deleted successfully');
+                          } else {
+                            showError(res.error || "Failed to delete discount");
+                          }
+                        } finally {
+                          setIsDeleting(false);
+                        }
+                      }}
+                      disabled={isDeleting}
+                      className="cursor-pointer"
+                    >
+                      {isDeleting ? "Deleting..." : "Yes, Delete"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="cursor-pointer"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditDialogOpen(false);
+                    setEditingDiscount(null);
+                    setShowDeleteConfirm(false);
+                  }}
+                  className="cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!editingDiscount) return;
+                    
+                    const trimmedCode = editCode.trim();
+                    if (!trimmedCode || trimmedCode.length < 3) {
+                      showError("Code must be at least 3 characters");
+                      return;
+                    }
+
+                    const pctNum = Number(editPercentage);
+                    if (!Number.isFinite(pctNum) || pctNum <= 0 || pctNum > 100) {
+                      showError("Enter a valid percentage between 1 and 100");
+                      return;
+                    }
+
+                    setIsSaving(true);
+                    try {
+                      const res = await updateDiscount(editingDiscount.id, {
+                        code: trimmedCode,
+                        percentage: pctNum / 100,
+                        isActive: editIsActive
+                      });
+
+                      if (res.success) {
+                        const reload = await listDiscounts();
+                        setDiscounts(reload.discounts || []);
+                        setIsEditDialogOpen(false);
+                        setEditingDiscount(null);
+                        setShowDeleteConfirm(false);
+                        showSuccess('Discount updated successfully');
+                      } else {
+                        showError(res.error || "Failed to update discount");
+                      }
+                    } finally {
+                      setIsSaving(false);
+                    }
+                  }}
+                  disabled={isSaving}
+                  className="cursor-pointer"
+                >
+                  {isSaving ? "Updating..." : "Update"}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
